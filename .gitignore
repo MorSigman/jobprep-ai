@@ -1,0 +1,22 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+.DS_Store
+
+# Personal/private files
+private-data
+uploads
+cv
+cvs
+resumes
+*.pdf
+*.docx
+*.xlsx
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
