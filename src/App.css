@@ -36,7 +36,7 @@ body {
   letter-spacing: 0.04em;
 }
 
-h1 {
+.pageTitle {
   margin: 0;
   max-width: 720px;
   font-size: 48px;
@@ -49,12 +49,6 @@ h1 {
   color: #4b5563;
   font-size: 20px;
   line-height: 1.8;
-}
-
-.heroActions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
 }
 
 button {
@@ -73,6 +67,29 @@ button.secondary {
   color: #1f2937;
 }
 
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+
+.statCard {
+  padding: 24px;
+  border-radius: 20px;
+  background: #f3f4f6;
+}
+
+.statCard strong {
+  display: block;
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.statCard span {
+  color: #4b5563;
+}
+
 @media (max-width: 700px) {
   .app {
     padding: 24px;
@@ -82,11 +99,15 @@ button.secondary {
     padding: 28px;
   }
 
-  h1 {
+  .pageTitle {
     font-size: 34px;
   }
 
   .heroText {
     font-size: 17px;
+  }
+
+  .statsGrid {
+    grid-template-columns: 1fr;
   }
 }
