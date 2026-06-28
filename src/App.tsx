@@ -39,6 +39,18 @@ function App() {
     setJobs((prev) => [job, ...prev]);
   }
 
+  function handleUpdateJob(updatedJob: JobApplication) {
+    setJobs((prev) =>
+      prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
+    );
+  }
+
+  function handleDeleteJob(id: string) {
+    setJobs((prev) => prev.filter((j) => j.id !== id));
+    setSelectedJob(null);
+    setActivePage("jobs");
+  }
+
   function handleSelectJob(job: JobApplication) {
     setSelectedJob(job);
     setActivePage("job-details");
@@ -62,21 +74,29 @@ function App() {
             jobs={jobs}
             onSelectJob={handleSelectJob}
             onAddJob={handleAddJob}
+            onUpdateJob={handleUpdateJob}
           />
         );
-      case "job-details":
-        return selectedJob ? (
+      case "job-details": {
+        const liveJob = selectedJob
+          ? (jobs.find((j) => j.id === selectedJob.id) ?? selectedJob)
+          : null;
+        return liveJob ? (
           <JobDetailsPage
-            job={selectedJob}
+            job={liveJob}
             onBack={() => setActivePage("jobs")}
+            onUpdate={handleUpdateJob}
+            onDelete={handleDeleteJob}
           />
         ) : (
           <JobsPage
             jobs={jobs}
             onSelectJob={handleSelectJob}
             onAddJob={handleAddJob}
+            onUpdateJob={handleUpdateJob}
           />
         );
+      }
       case "projects":
         return <ProjectsPage />;
       case "personal-interview":

@@ -31,9 +31,19 @@ type Props = {
   jobs: JobApplication[];
   onSelectJob: (job: JobApplication) => void;
   onAddJob: (job: JobApplication) => void;
+  onUpdateJob: (job: JobApplication) => void;
 };
 
-function JobsPage({ jobs, onSelectJob, onAddJob }: Props) {
+function toLocalDateStr(): string {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function JobsPage({ jobs, onSelectJob, onAddJob, onUpdateJob }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
   const [categoryFilter, setCategoryFilter] = useState<JobCategory | "all">(
@@ -55,6 +65,12 @@ function JobsPage({ jobs, onSelectJob, onAddJob }: Props) {
   function handleAdd(job: JobApplication) {
     onAddJob(job);
     setShowForm(false);
+  }
+
+  function handleStatusChange(id: string, newStatus: JobStatus) {
+    const job = jobs.find((j) => j.id === id);
+    if (!job) return;
+    onUpdateJob({ ...job, status: newStatus, updatedAt: toLocalDateStr() });
   }
 
   return (
@@ -86,7 +102,7 @@ function JobsPage({ jobs, onSelectJob, onAddJob }: Props) {
       {showForm && (
         <div className="card">
           <h3 className="card__title">הוספת משרה חדשה</h3>
-          <AddJobForm onAdd={handleAdd} onCancel={() => setShowForm(false)} />
+          <AddJobForm onSave={handleAdd} onCancel={() => setShowForm(false)} />
         </div>
       )}
 
@@ -138,7 +154,12 @@ function JobsPage({ jobs, onSelectJob, onAddJob }: Props) {
       ) : (
         <div className="jobs-list">
           {filtered.map((job) => (
-            <JobCard key={job.id} job={job} onSelect={onSelectJob} />
+            <JobCard
+              key={job.id}
+              job={job}
+              onSelect={onSelectJob}
+              onStatusChange={handleStatusChange}
+            />
           ))}
         </div>
       )}

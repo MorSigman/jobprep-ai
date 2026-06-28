@@ -41,8 +41,9 @@ type FormState = {
 type FormErrors = Partial<Record<keyof FormState, string>>;
 
 type Props = {
-  onAdd: (job: JobApplication) => void;
+  onSave: (job: JobApplication) => void;
   onCancel: () => void;
+  initialJob?: JobApplication;
 };
 
 function todayLocalStr(): string {
@@ -54,26 +55,27 @@ function todayLocalStr(): string {
   ].join("-");
 }
 
-function emptyForm(): FormState {
+function buildForm(initial?: JobApplication): FormState {
   return {
-    companyName: "",
-    roleTitle: "",
-    jobUrl: "",
-    jobDescription: "",
-    category: "",
-    status: "applied",
-    source: "",
-    resumeVersion: "",
-    appliedAt: todayLocalStr(),
-    followUpAt: "",
-    nextAction: "",
-    notes: "",
+    companyName: initial?.companyName ?? "",
+    roleTitle: initial?.roleTitle ?? "",
+    jobUrl: initial?.jobUrl ?? "",
+    jobDescription: initial?.jobDescription ?? "",
+    category: initial?.category ?? "",
+    status: initial?.status ?? "applied",
+    source: initial?.source ?? "",
+    resumeVersion: initial?.resumeVersion ?? "",
+    appliedAt: initial?.appliedAt ?? todayLocalStr(),
+    followUpAt: initial?.followUpAt ?? "",
+    nextAction: initial?.nextAction ?? "",
+    notes: initial?.notes ?? "",
   };
 }
 
-function AddJobForm({ onAdd, onCancel }: Props) {
-  const [form, setForm] = useState<FormState>(emptyForm);
+function AddJobForm({ onSave, onCancel, initialJob }: Props) {
+  const [form, setForm] = useState<FormState>(() => buildForm(initialJob));
   const [errors, setErrors] = useState<FormErrors>({});
+  const isEditing = initialJob !== undefined;
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -97,8 +99,8 @@ function AddJobForm({ onAdd, onCancel }: Props) {
       setErrors(errs);
       return;
     }
-    const newJob: JobApplication = {
-      id: crypto.randomUUID(),
+    const saved: JobApplication = {
+      id: initialJob?.id ?? crypto.randomUUID(),
       companyName: form.companyName.trim(),
       roleTitle: form.roleTitle.trim(),
       jobUrl: form.jobUrl.trim() || undefined,
@@ -111,8 +113,10 @@ function AddJobForm({ onAdd, onCancel }: Props) {
       followUpAt: form.followUpAt || undefined,
       nextAction: form.nextAction.trim() || undefined,
       notes: form.notes.trim() || undefined,
+      matchScore: initialJob?.matchScore,
+      updatedAt: isEditing ? todayLocalStr() : undefined,
     };
-    onAdd(newJob);
+    onSave(saved);
   }
 
   return (
@@ -315,7 +319,7 @@ function AddJobForm({ onAdd, onCancel }: Props) {
 
       <div className="add-job-form__actions">
         <button type="submit" className="btn btn--primary">
-          הוספת משרה
+          {isEditing ? "שמירה" : "הוספת משרה"}
         </button>
         <button type="button" className="btn btn--secondary" onClick={onCancel}>
           ביטול

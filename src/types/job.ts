@@ -33,4 +33,5 @@ export type JobApplication = {
   matchScore?: number;
   nextAction?: string;
   notes?: string;
+  updatedAt?: string;
 };
