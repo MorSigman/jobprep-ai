@@ -19,30 +19,35 @@ type Props = {
 
 function JobCard({ job, onSelect }: Props) {
   return (
-    <article className="jobCard">
-      <div className="jobCard__header">
-        <h2 className="jobCard__company">{job.companyName}</h2>
-        <span className={`jobCard__status jobCard__status--${job.status}`}>
+    <div className="job-card">
+      <div className="job-card__header">
+        <div>
+          <p className="job-card__company">{job.companyName}</p>
+          <p className="job-card__role">{job.roleTitle}</p>
+        </div>
+        <span className={`status-badge status-badge--${job.status}`}>
           {statusLabels[job.status] ?? job.status}
         </span>
       </div>
 
-      <p className="jobCard__role">{job.roleTitle}</p>
-
-      <div className="jobCard__meta">
-        <span>מקור: {job.source}</span>
-        {job.resumeVersion && <span>קו"ח: {job.resumeVersion}</span>}
-        {job.matchScore !== undefined && <span>התאמה: {job.matchScore}%</span>}
-        {job.appliedAt && <span>הגשה: {job.appliedAt}</span>}
-        {job.followUpAt && <span>מעקב: {job.followUpAt}</span>}
+      <div className="job-card__meta">
+        {job.source && <span className="chip">{job.source}</span>}
+        {job.matchScore !== undefined && (
+          <span className="chip chip--teal">התאמה {job.matchScore}%</span>
+        )}
+        {job.appliedAt && (
+          <span className="chip">הגשה: {job.appliedAt}</span>
+        )}
       </div>
 
       {job.nextAction && (
-        <p className="jobCard__action">פעולה הבאה: {job.nextAction}</p>
+        <p className="job-card__action">{job.nextAction}</p>
       )}
 
-      <button onClick={() => onSelect(job)}>פתחי הכנה למשרה</button>
-    </article>
+      <button className="btn btn--primary btn--sm" onClick={() => onSelect(job)}>
+        פתחי הכנה למשרה
+      </button>
+    </div>
   );
 }
 

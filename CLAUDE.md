@@ -54,6 +54,18 @@ Build a personal job search assistant that helps me:
 - Do not add GitHub API yet.
 - Start with local mock data only.
 
+## Local-First Privacy Rule
+
+This app is personal and privacy-first. Personal job search data must never leave the user's machine.
+
+- Do NOT suggest cloud storage (Supabase, Firebase, PlanetScale, etc.) for personal data.
+- Do NOT suggest external AI APIs (OpenAI, Claude API) for processing personal data.
+- Do NOT suggest any architecture that transmits job applications, interview notes, recruiter names, or personal answers to an external server.
+- The next persistence step is **IndexedDB** (browser-local, no server required).
+- Backup will be user-controlled Export / Import JSON — no automatic cloud sync.
+- GitHub contains only source code, documentation, and fake demo data.
+- Real user data lives only on the local machine of whoever runs the app.
+
 ## First Version Features
 
 1. Dashboard
