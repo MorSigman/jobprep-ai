@@ -3,14 +3,27 @@ dist
 .env
 .env.local
 .env.*.local
+*.local
 .DS_Store
 
 # Personal/private files
-private-data
-uploads
-cv
-cvs
-resumes
+private-data/
+uploads/
+cv/
+cvs/
+resumes/
+
+# Local backup and export folders
+backups/
+exports/
+
+# Backup and database files
+*.backup.json
+*.db
+*.sqlite
+*.sqlite3
+
+# Office and document files
 *.pdf
 *.docx
 *.xlsx
