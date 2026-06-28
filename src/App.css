@@ -67,6 +67,8 @@ button.secondary {
   color: #1f2937;
 }
 
+/* Dashboard */
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -90,6 +92,114 @@ button.secondary {
   color: #4b5563;
 }
 
+/* Jobs Page */
+
+.jobsControls {
+  display: flex;
+  gap: 12px;
+  margin: 24px 0;
+  flex-wrap: wrap;
+}
+
+.jobsSearch,
+.jobsFilter {
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-size: 15px;
+  background: #ffffff;
+  color: #1f2937;
+  font-family: inherit;
+}
+
+.jobsSearch {
+  flex: 1;
+  min-width: 200px;
+}
+
+.jobsEmpty {
+  color: #6b7280;
+  margin-top: 24px;
+}
+
+.jobsList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Job Card */
+
+.jobCard {
+  padding: 24px;
+  border-radius: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.jobCard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.jobCard__company {
+  margin: 0;
+  font-size: 20px;
+}
+
+.jobCard__status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.jobCard__status--waiting             { background: #fef3c7; color: #92400e; }
+.jobCard__status--phone_screen        { background: #dbeafe; color: #1e40af; }
+.jobCard__status--technical_interview { background: #ede9fe; color: #5b21b6; }
+.jobCard__status--personal_interview  { background: #e0e7ff; color: #3730a3; }
+.jobCard__status--home_assignment     { background: #ffedd5; color: #9a3412; }
+.jobCard__status--offer               { background: #dcfce7; color: #14532d; }
+.jobCard__status--rejected            { background: #fee2e2; color: #991b1b; }
+.jobCard__status--applied             { background: #f3f4f6; color: #374151; }
+.jobCard__status--saved               { background: #f3f4f6; color: #374151; }
+
+.jobCard__role {
+  margin: 0 0 12px;
+  color: #4b5563;
+  font-size: 16px;
+}
+
+.jobCard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.jobCard__meta span {
+  padding: 4px 10px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.jobCard__action {
+  margin: 0;
+  padding: 10px 14px;
+  background: #eff6ff;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1e40af;
+}
+
 @media (max-width: 700px) {
   .app {
     padding: 24px;
@@ -109,5 +219,10 @@ button.secondary {
 
   .statsGrid {
     grid-template-columns: 1fr;
+  }
+
+  .jobCard__header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

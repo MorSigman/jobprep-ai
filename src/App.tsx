@@ -1,11 +1,11 @@
 import "./App.css";
-import DashboardPage from "./pages/DashboardPage";
+import JobsPage from "./pages/JobsPage";
 
 function App() {
   return (
     <main className="app" dir="rtl">
       <div className="hero">
-        <DashboardPage />
+        <JobsPage />
       </div>
     </main>
   );
