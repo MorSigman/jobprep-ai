@@ -14,9 +14,10 @@ const statusLabels: Record<string, string> = {
 
 type Props = {
   job: JobApplication;
+  onSelect: (job: JobApplication) => void;
 };
 
-function JobCard({ job }: Props) {
+function JobCard({ job, onSelect }: Props) {
   return (
     <article className="jobCard">
       <div className="jobCard__header">
@@ -39,6 +40,8 @@ function JobCard({ job }: Props) {
       {job.nextAction && (
         <p className="jobCard__action">פעולה הבאה: {job.nextAction}</p>
       )}
+
+      <button onClick={() => onSelect(job)}>פתחי הכנה למשרה</button>
     </article>
   );
 }

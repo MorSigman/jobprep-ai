@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { demoJobs } from "../data/demoJobs";
-import type { JobStatus } from "../types/job";
+import type { JobApplication, JobStatus } from "../types/job";
 import JobCard from "../components/JobCard";
+import JobDetailsPage from "./JobDetailsPage";
 
 const statusOptions: { value: JobStatus | "all"; label: string }[] = [
   { value: "all", label: "כל הסטטוסים" },
@@ -14,6 +15,18 @@ const statusOptions: { value: JobStatus | "all"; label: string }[] = [
 function JobsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
+  const [selectedJob, setSelectedJob] = useState<JobApplication | null>(null);
+
+  if (selectedJob) {
+    return (
+      <div>
+        <button className="backButton" onClick={() => setSelectedJob(null)}>
+          חזרה לרשימת המשרות
+        </button>
+        <JobDetailsPage job={selectedJob} />
+      </div>
+    );
+  }
 
   const filtered = demoJobs.filter((job) => {
     const query = search.toLowerCase();
@@ -58,7 +71,7 @@ function JobsPage() {
       ) : (
         <div className="jobsList">
           {filtered.map((job) => (
-            <JobCard key={job.id} job={job} />
+            <JobCard key={job.id} job={job} onSelect={setSelectedJob} />
           ))}
         </div>
       )}
