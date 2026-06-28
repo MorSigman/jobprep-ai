@@ -5,6 +5,8 @@ type Props = {
   children: ReactNode;
   activePage: PageName;
   onNavigate: (page: PageName) => void;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
 };
 
 const navItems: { label: string; page: PageName }[] = [
@@ -15,21 +17,28 @@ const navItems: { label: string; page: PageName }[] = [
   { label: "ראיון אישי", page: "personal-interview" },
 ];
 
-function AppLayout({ children, activePage, onNavigate }: Props) {
+function AppLayout({
+  children,
+  activePage,
+  onNavigate,
+  theme,
+  onToggleTheme,
+}: Props) {
   return (
-    <div className="app-shell" dir="rtl">
+    <div className={`app-shell theme-${theme}`} dir="rtl">
       <aside className="sidebar">
         <div className="sidebar__logo">
-          <p className="sidebar__app-name">Job Search Hub</p>
+          <p className="sidebar__app-name">JobPrep AI</p>
           <p className="sidebar__subtitle">מערכת לניהול חיפוש עבודה</p>
         </div>
 
-        <nav className="sidebar__nav">
+        <nav className="sidebar__nav" aria-label="ניווט ראשי">
           {navItems.map((item) => (
             <button
               key={item.page}
               className={`nav-item${activePage === item.page ? " active" : ""}`}
               onClick={() => onNavigate(item.page)}
+              aria-current={activePage === item.page ? "page" : undefined}
             >
               {item.label}
             </button>
@@ -45,6 +54,15 @@ function AppLayout({ children, activePage, onNavigate }: Props) {
             באותו עמוד רואים שאלות, תשובות, ידע מקצועי והכנה אישית.
           </p>
         </div>
+
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={onToggleTheme}
+          aria-label={theme === "light" ? "עבור למצב לילה" : "עבור למצב יום"}
+        >
+          {theme === "light" ? "🌙 מצב לילה" : "☀️ מצב יום"}
+        </button>
 
         <div className="demo-notice">
           <span className="demo-notice__label">מצב דמו</span>

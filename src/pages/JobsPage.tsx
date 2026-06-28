@@ -34,6 +34,7 @@ function JobsPage({ onSelectJob }: Props) {
       <div className="page__header">
         <p className="page__eyebrow">משרות</p>
         <h2 className="page__title">מעקב משרות</h2>
+        <p className="page__subtitle">רשימת המשרות שלי — נתוני דמו בלבד</p>
       </div>
 
       <div className="jobs-layout">
@@ -41,40 +42,61 @@ function JobsPage({ onSelectJob }: Props) {
           <div className="card">
             <h3 className="card__title">הוספת משרה חדשה</h3>
             <div className="form-group">
-              <label className="form-label">שם חברה</label>
-              <input className="form-input" placeholder="לדוגמה: Google" />
+              <label className="form-label" htmlFor="field-company">
+                שם חברה
+              </label>
+              <input
+                id="field-company"
+                className="form-input"
+                placeholder="לדוגמה: Google"
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">תפקיד</label>
+              <label className="form-label" htmlFor="field-role">
+                תפקיד
+              </label>
               <input
+                id="field-role"
                 className="form-input"
                 placeholder="לדוגמה: Frontend Developer"
               />
             </div>
             <div className="form-group">
-              <label className="form-label">לינק למשרה</label>
-              <input className="form-input" placeholder="https://..." />
+              <label className="form-label" htmlFor="field-url">
+                לינק למשרה
+              </label>
+              <input
+                id="field-url"
+                className="form-input"
+                placeholder="https://..."
+              />
             </div>
             <div className="form-group">
-              <label className="form-label">מקור</label>
-              <select className="form-input">
+              <label className="form-label" htmlFor="field-source">
+                מקור
+              </label>
+              <select id="field-source" className="form-input">
                 <option>LinkedIn</option>
                 <option>Company Website</option>
                 <option>אחר</option>
               </select>
             </div>
-            <button className="btn btn--primary btn--full">הוספת משרה</button>
+            <button type="button" className="btn btn--primary btn--full">
+              הוספת משרה
+            </button>
           </div>
         </div>
 
         <div className="jobs-list-panel">
           <div className="jobs-controls">
             <input
+              id="search-jobs"
               type="search"
               className="form-input"
               placeholder="חיפוש לפי חברה או תפקיד..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="חיפוש משרות"
             />
             <select
               className="form-input"
@@ -82,6 +104,7 @@ function JobsPage({ onSelectJob }: Props) {
               onChange={(e) =>
                 setStatusFilter(e.target.value as JobStatus | "all")
               }
+              aria-label="סינון לפי סטטוס"
             >
               {statusOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>

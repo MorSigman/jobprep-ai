@@ -9,6 +9,15 @@ export type JobStatus =
   | "offer"
   | "rejected";
 
+export type JobCategory =
+  | "Frontend"
+  | "Backend"
+  | "QA"
+  | "Data Analyst"
+  | "Cyber"
+  | "Product"
+  | "Other";
+
 export type JobApplication = {
   id: string;
   companyName: string;
@@ -17,6 +26,7 @@ export type JobApplication = {
   jobDescription: string;
   status: JobStatus;
   source: string;
+  category?: JobCategory;
   resumeVersion?: string;
   appliedAt?: string;
   followUpAt?: string;

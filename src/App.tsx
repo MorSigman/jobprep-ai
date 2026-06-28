@@ -12,6 +12,7 @@ import type { JobApplication } from "./types/job";
 function App() {
   const [activePage, setActivePage] = useState<PageName>("dashboard");
   const [selectedJob, setSelectedJob] = useState<JobApplication | null>(null);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   function handleSelectJob(job: JobApplication) {
     setSelectedJob(job);
@@ -49,7 +50,12 @@ function App() {
   }
 
   return (
-    <AppLayout activePage={activePage} onNavigate={handleNavigate}>
+    <AppLayout
+      activePage={activePage}
+      onNavigate={handleNavigate}
+      theme={theme}
+      onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+    >
       {renderPage()}
     </AppLayout>
   );
