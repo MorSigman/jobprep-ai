@@ -25,6 +25,30 @@ JobPrep AI is that place.
 
 ---
 
+## Why This Is More Than a Simple CRUD App
+
+Most "job tracker" portfolio projects are a list with an add/edit/delete form. This project makes different choices — here is why each one matters.
+
+**Local-first privacy architecture** — Personal job search data (recruiter names, salary expectations, interview notes) is sensitive. Instead of the common pattern of "build a backend and store everything in a cloud database," this app is designed so that real user data never leaves the device. The GitHub version uses fake demo data; the real version will use IndexedDB in the browser.
+
+**Hebrew RTL product design** — RTL layout is not just `text-align: right`. It changes how CSS flexbox flows children, how borders and padding are oriented, and how the sidebar sits relative to the content. Building a full RTL product in Hebrew from scratch requires careful consideration of layout at every level.
+
+**Dashboard analytics with real data derivation** — The dashboard stats (total jobs, sent this week, in interview, waiting) are computed from the demo dataset, not hard-coded numbers. The bar chart and donut chart are built with pure CSS and conic-gradient — no chart library added.
+
+**Visual-only AI demo without any external API** — The AI assistant panel shows what the feature will look like without calling OpenAI, Anthropic, or any other service. This demonstrates that a feature can be designed and prototyped before the implementation is wired up, and that the privacy constraint (no personal data to external APIs) is a first-class design decision.
+
+**Planned IndexedDB persistence** — The UI is fully built. The data layer is the next step. This separation of concerns (UI complete before persistence is decided) is an intentional architectural choice.
+
+**Planned Export / Import JSON backup** — Instead of sync, the user owns their backup file. This works offline, requires no account, and keeps the data in a format the user can open, read, and understand.
+
+**Portfolio-safe demo data** — The repository is safe to share publicly. All company names, roles, and interview notes are invented. The demo notice in the sidebar makes this explicit to anyone who opens the app.
+
+**Accessibility and readable UI** — Focus-visible keyboard navigation, `aria-current` on the active nav item, `aria-label` on controls, `htmlFor`/`id` connections on form labels, readable contrast ratios, and semantic HTML throughout.
+
+**Clear separation between GitHub code and local personal data** — A policy enforced by documentation ([docs/PRIVACY.md](docs/PRIVACY.md), [docs/DEMO_DATA.md](docs/DEMO_DATA.md)) and by architecture. Real data lives in the browser; the repository contains only code.
+
+---
+
 ## Tech Stack
 
 | Layer | Choice |
@@ -68,27 +92,34 @@ See [docs/PRIVACY.md](docs/PRIVACY.md) for the full policy.
 
 ## Current Demo Features
 
-- [x] Dashboard with stats and navigation
+- [x] Dashboard with 5 live stat cards (total / today / week / in interview / waiting)
+- [x] Bar chart — applications by day of the week (pure CSS)
+- [x] Donut chart — applications by job category (CSS conic-gradient)
+- [x] Visual-only AI assistant demo panel
 - [x] Job list with search and status filter
 - [x] Add job form (UI only — no persistence yet)
 - [x] Job details page with three interview prep tabs (phone / technical / personal)
 - [x] Projects page with demo project cards and interview tips
 - [x] Personal interview page with prepared answer cards
-- [x] Sticky RTL sidebar with active-page highlighting
-- [x] Responsive layout (collapses below 700px)
+- [x] Sticky RTL sidebar with active-page highlighting and `aria-current`
+- [x] Light / dark mode toggle (CSS variables, warm neutral palette)
+- [x] Responsive layout — stacks cleanly at 900px and 700px
+- [x] Keyboard-accessible focus states throughout
 
 ---
 
 ## Future Local-Only Roadmap
 
-- [ ] IndexedDB persistence — add/edit/delete jobs in the browser
-- [ ] Add job form submits to IndexedDB
-- [ ] Per-job Q&A editor — write and save custom answers per interview type
-- [ ] Per-job personal answers — "why do you want this role" customized per company
-- [ ] Export to JSON — full backup the user controls
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full 8-phase plan with reasoning.
+
+- [ ] localStorage prototype — jobs survive page refresh
+- [ ] IndexedDB persistence — full CRUD, typed records, no size limit
+- [ ] Per-job Q&A editor — custom answers per interview type
+- [ ] Per-job personal answers — "why do you want this role" per company
+- [ ] Export to JSON — user-controlled backup
 - [ ] Import from JSON — restore on a new machine
-- [ ] Project details page with editable talking points
-- [ ] Match score calculator (local, no AI API)
+- [ ] Job pipeline view — Kanban by status
+- [ ] Local AI or desktop version (no external API)
 
 ---
 
