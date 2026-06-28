@@ -1,7 +1,8 @@
-import { demoJobs } from "../data/demoJobs";
+import type { JobApplication } from "../types/job";
 import type { PageName } from "../types/navigation";
 
 type Props = {
+  jobs: JobApplication[];
   onNavigate: (page: PageName) => void;
 };
 
@@ -12,17 +13,14 @@ const INTERVIEW_STATUSES = new Set([
   "personal_interview",
 ]);
 
-const DEMO_TODAY = "2026-06-28";
-const DEMO_WEEK_START = "2026-06-22";
-
-const WEEK_DAYS = [
-  { label: "ראשון", date: "2026-06-22" },
-  { label: "שני", date: "2026-06-23" },
-  { label: "שלישי", date: "2026-06-24" },
-  { label: "רביעי", date: "2026-06-25" },
-  { label: "חמישי", date: "2026-06-26" },
-  { label: "שישי", date: "2026-06-27" },
-  { label: "שבת", date: "2026-06-28" },
+const HEBREW_DAY_NAMES = [
+  "ראשון",
+  "שני",
+  "שלישי",
+  "רביעי",
+  "חמישי",
+  "שישי",
+  "שבת",
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -35,28 +33,49 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: "#c0b8b0",
 };
 
-function DashboardPage({ onNavigate }: Props) {
+function toLocalDateStr(d = new Date()): string {
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function getLast7Days() {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return { label: HEBREW_DAY_NAMES[d.getDay()], date: toLocalDateStr(d) };
+  });
+}
+
+function DashboardPage({ jobs, onNavigate }: Props) {
+  const todayStr = toLocalDateStr();
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - 6);
+  const weekStartStr = toLocalDateStr(weekStart);
+  const weekDays = getLast7Days();
+
   const stats = {
-    total: demoJobs.length,
-    today: demoJobs.filter((j) => j.appliedAt === DEMO_TODAY).length,
-    thisWeek: demoJobs.filter(
+    total: jobs.length,
+    today: jobs.filter((j) => j.appliedAt === todayStr).length,
+    thisWeek: jobs.filter(
       (j) =>
         j.appliedAt &&
-        j.appliedAt >= DEMO_WEEK_START &&
-        j.appliedAt <= DEMO_TODAY
+        j.appliedAt >= weekStartStr &&
+        j.appliedAt <= todayStr
     ).length,
-    inInterview: demoJobs.filter((j) => INTERVIEW_STATUSES.has(j.status))
-      .length,
-    waiting: demoJobs.filter((j) => j.status === "waiting").length,
+    inInterview: jobs.filter((j) => INTERVIEW_STATUSES.has(j.status)).length,
+    waiting: jobs.filter((j) => j.status === "waiting").length,
   };
 
-  const dailyCounts = WEEK_DAYS.map((day) => ({
+  const dailyCounts = weekDays.map((day) => ({
     label: day.label,
-    count: demoJobs.filter((j) => j.appliedAt === day.date).length,
+    count: jobs.filter((j) => j.appliedAt === day.date).length,
   }));
   const maxBarCount = Math.max(...dailyCounts.map((d) => d.count), 1);
 
-  const categoryCounts = demoJobs.reduce(
+  const categoryCounts = jobs.reduce(
     (acc, job) => {
       const cat = job.category ?? "Other";
       acc[cat] = (acc[cat] ?? 0) + 1;
@@ -65,13 +84,13 @@ function DashboardPage({ onNavigate }: Props) {
     {} as Record<string, number>
   );
 
-  const total = demoJobs.length;
+  const total = jobs.length;
   const categories = Object.entries(categoryCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({
       name,
       count,
-      pct: count / total,
+      pct: total > 0 ? count / total : 0,
       color: CATEGORY_COLORS[name] ?? "#c0b8b0",
     }));
 
@@ -82,14 +101,17 @@ function DashboardPage({ onNavigate }: Props) {
     const end = (gradientOffset * 100).toFixed(1);
     return `${color} ${start}% ${end}%`;
   });
-  const donutGradient = `conic-gradient(${gradientParts.join(", ")})`;
+  const donutGradient =
+    gradientParts.length > 0
+      ? `conic-gradient(${gradientParts.join(", ")})`
+      : `conic-gradient(var(--border) 0% 100%)`;
 
   return (
     <div className="page">
       <div className="page__header">
         <p className="page__eyebrow">דשבורד</p>
         <h2 className="page__title">סיכום חיפוש העבודה</h2>
-        <p className="page__subtitle">פעילות השבוע — נתוני דמו בלבד</p>
+        <p className="page__subtitle">פעילות שבעת הימים האחרונים</p>
       </div>
 
       <div className="stats-grid stats-grid--5">
@@ -118,14 +140,14 @@ function DashboardPage({ onNavigate }: Props) {
       <div className="charts-row">
         <div className="card chart-card">
           <h3 className="card__title">משרות לפי יום</h3>
-          <p className="chart-subtitle">השבוע הנוכחי — נתוני דמו</p>
+          <p className="chart-subtitle">שבעת הימים האחרונים</p>
           <div
             className="bar-chart"
             role="img"
             aria-label="תרשים עמודות: משרות לפי יום בשבוע"
           >
             {dailyCounts.map((day) => (
-              <div key={day.label} className="bar-chart__col">
+              <div key={day.label + day.count} className="bar-chart__col">
                 <span className="bar-chart__count">{day.count}</span>
                 <div className="bar-chart__bar-wrapper">
                   <div
@@ -143,36 +165,40 @@ function DashboardPage({ onNavigate }: Props) {
 
         <div className="card chart-card">
           <h3 className="card__title">משרות לפי תחום</h3>
-          <p className="chart-subtitle">התפלגות לפי קטגוריה — נתוני דמו</p>
-          <div className="donut-section">
-            <div
-              className="donut-chart"
-              style={{ background: donutGradient }}
-              role="img"
-              aria-label="תרשים עוגה: התפלגות משרות לפי תחום"
-            >
-              <div className="donut-chart__hole">
-                <span className="donut-chart__total">{total}</span>
-                <span className="donut-chart__total-label">משרות</span>
+          <p className="chart-subtitle">התפלגות לפי קטגוריה</p>
+          {total === 0 ? (
+            <p className="chart-empty">אין עדיין נתונים להצגה</p>
+          ) : (
+            <div className="donut-section">
+              <div
+                className="donut-chart"
+                style={{ background: donutGradient }}
+                role="img"
+                aria-label="תרשים עוגה: התפלגות משרות לפי תחום"
+              >
+                <div className="donut-chart__hole">
+                  <span className="donut-chart__total">{total}</span>
+                  <span className="donut-chart__total-label">משרות</span>
+                </div>
               </div>
+              <ul className="donut-legend">
+                {categories.map((cat) => (
+                  <li key={cat.name} className="donut-legend__item">
+                    <span
+                      className="donut-legend__dot"
+                      style={{ background: cat.color }}
+                      aria-hidden="true"
+                    />
+                    <span className="donut-legend__name">{cat.name}</span>
+                    <span className="donut-legend__count">{cat.count}</span>
+                    <span className="donut-legend__pct">
+                      {Math.round(cat.pct * 100)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="donut-legend">
-              {categories.map((cat) => (
-                <li key={cat.name} className="donut-legend__item">
-                  <span
-                    className="donut-legend__dot"
-                    style={{ background: cat.color }}
-                    aria-hidden="true"
-                  />
-                  <span className="donut-legend__name">{cat.name}</span>
-                  <span className="donut-legend__count">{cat.count}</span>
-                  <span className="donut-legend__pct">
-                    {Math.round(cat.pct * 100)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          )}
         </div>
       </div>
 
@@ -188,23 +214,23 @@ function DashboardPage({ onNavigate }: Props) {
               className="btn btn--primary btn--sm"
               onClick={() => onNavigate("jobs")}
             >
-              מעקב משרות
+              + הוספת משרה
             </button>
             <button
               type="button"
               className="btn btn--secondary btn--sm"
-              onClick={() => onNavigate("job-details")}
+              onClick={() => onNavigate("jobs")}
             >
-              עמוד משרה
+              רשימת משרות
             </button>
           </div>
         </div>
         <div className="card">
           <h3 className="card__title">מאיפה יגיע המידע</h3>
           <p className="card__text">
-            בשלב זה המידע מוזן ידנית. בהמשך תהיה אפשרות לנתח תיאור משרה
-            אוטומטית ולקבל שאלות מותאמות מהמערכת — הכל מקומית, ללא שליחת
-            מידע לשרת.
+            המידע מוזן ידנית דרך טופס הוספת משרה. הנתונים נשמרים מקומית
+            בדפדפן במחשב שלך בלבד — ללא שליחה לשרת חיצוני. בהמשך תתוסף
+            אפשרות לייצוא וייבוא גיבוי.
           </p>
         </div>
       </div>

@@ -1,18 +1,43 @@
 import "./App.css";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import JobDetailsPage from "./pages/JobDetailsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PersonalInterviewPage from "./pages/PersonalInterviewPage";
+import { demoJobs } from "./data/demoJobs";
 import type { PageName } from "./types/navigation";
 import type { JobApplication } from "./types/job";
+
+const LOCAL_STORAGE_KEY = "jobprep-ai-jobs";
+
+function loadJobs(): JobApplication[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (raw !== null) {
+      const parsed = JSON.parse(raw) as JobApplication[];
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {
+    // corrupted storage — fall back to demo data
+  }
+  return demoJobs;
+}
 
 function App() {
   const [activePage, setActivePage] = useState<PageName>("dashboard");
   const [selectedJob, setSelectedJob] = useState<JobApplication | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [jobs, setJobs] = useState<JobApplication[]>(loadJobs);
+
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(jobs));
+  }, [jobs]);
+
+  function handleAddJob(job: JobApplication) {
+    setJobs((prev) => [job, ...prev]);
+  }
 
   function handleSelectJob(job: JobApplication) {
     setSelectedJob(job);
@@ -30,9 +55,15 @@ function App() {
   function renderPage() {
     switch (activePage) {
       case "dashboard":
-        return <DashboardPage onNavigate={handleNavigate} />;
+        return <DashboardPage jobs={jobs} onNavigate={handleNavigate} />;
       case "jobs":
-        return <JobsPage onSelectJob={handleSelectJob} />;
+        return (
+          <JobsPage
+            jobs={jobs}
+            onSelectJob={handleSelectJob}
+            onAddJob={handleAddJob}
+          />
+        );
       case "job-details":
         return selectedJob ? (
           <JobDetailsPage
@@ -40,7 +71,11 @@ function App() {
             onBack={() => setActivePage("jobs")}
           />
         ) : (
-          <JobsPage onSelectJob={handleSelectJob} />
+          <JobsPage
+            jobs={jobs}
+            onSelectJob={handleSelectJob}
+            onAddJob={handleAddJob}
+          />
         );
       case "projects":
         return <ProjectsPage />;
