@@ -1,10 +1,16 @@
+import { useState, useRef } from "react";
 import type { JobApplication } from "../types/job";
 import type { PageName } from "../types/navigation";
+import { parseJobsBackupFile } from "../lib/backup";
 
 type Props = {
   jobs: JobApplication[];
   onNavigate: (page: PageName) => void;
+  onExport: () => void;
+  onImport: (jobs: JobApplication[]) => void;
 };
+
+type BackupMessage = { type: "success" | "error"; text: string };
 
 const INTERVIEW_STATUSES = new Set([
   "phone_screen",
@@ -49,7 +55,50 @@ function getLast7Days() {
   });
 }
 
-function DashboardPage({ jobs, onNavigate }: Props) {
+function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [backupMessage, setBackupMessage] = useState<BackupMessage | null>(null);
+  const [pendingJobs, setPendingJobs] = useState<JobApplication[] | null>(null);
+
+  function showMessage(msg: BackupMessage) {
+    setBackupMessage(msg);
+    setTimeout(() => setBackupMessage(null), 4000);
+  }
+
+  function handleExportClick() {
+    onExport();
+    showMessage({ type: "success", text: "קובץ הגיבוי נוצר בהצלחה." });
+  }
+
+  function handleImportClick() {
+    fileInputRef.current?.click();
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    parseJobsBackupFile(file)
+      .then((backup) => {
+        setPendingJobs(backup.jobs);
+        setBackupMessage(null);
+      })
+      .catch(() => {
+        showMessage({ type: "error", text: "קובץ הגיבוי אינו תקין." });
+      });
+  }
+
+  function confirmImport() {
+    if (!pendingJobs) return;
+    onImport(pendingJobs);
+    setPendingJobs(null);
+    showMessage({ type: "success", text: "הגיבוי יובא בהצלחה." });
+  }
+
+  function cancelImport() {
+    setPendingJobs(null);
+  }
+
   const todayStr = toLocalDateStr();
   const weekStart = new Date();
   weekStart.setDate(weekStart.getDate() - 6);
@@ -229,10 +278,71 @@ function DashboardPage({ jobs, onNavigate }: Props) {
           <h3 className="card__title">מאיפה יגיע המידע</h3>
           <p className="card__text">
             המידע מוזן ידנית דרך טופס הוספת משרה. הנתונים נשמרים מקומית
-            בדפדפן במחשב שלך בלבד — ללא שליחה לשרת חיצוני. בהמשך תתוסף
-            אפשרות לייצוא וייבוא גיבוי.
+            בדפדפן באמצעות IndexedDB — ללא שליחה לשרת חיצוני.
           </p>
         </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card__title">גיבוי מקומי</h3>
+        <p className="card__text">
+          הגיבוי נשמר כקובץ מקומי במחשב שלך. אין העלאה לשרת חיצוני.
+        </p>
+        <div className="btn-row" style={{ marginTop: "16px" }}>
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            onClick={handleExportClick}
+          >
+            ייצוא גיבוי
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={handleImportClick}
+          >
+            ייבוא גיבוי
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            style={{ display: "none" }}
+            onChange={handleFileChange}
+            aria-label="בחירת קובץ גיבוי לייבוא"
+          />
+        </div>
+        {pendingJobs !== null && (
+          <div className="import-confirm" role="alert">
+            <span className="import-confirm__text">
+              ייבוא גיבוי יחליף את רשימת המשרות הנוכחית. להמשיך?
+            </span>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={confirmImport}
+              >
+                כן, ייבא
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={cancelImport}
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        )}
+        {backupMessage && (
+          <p
+            className={`backup-message backup-message--${backupMessage.type}`}
+            role="status"
+          >
+            {backupMessage.text}
+          </p>
+        )}
       </div>
 
       <div className="ai-demo-panel">

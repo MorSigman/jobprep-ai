@@ -34,4 +34,13 @@ export type JobApplication = {
   nextAction?: string;
   notes?: string;
   updatedAt?: string;
+  companyResearch?: string;
+  keyRequirements?: string;
+  skillsToLearn?: string;
+  phoneScreenNotes?: string;
+  technicalQuestions?: string;
+  personalQuestions?: string;
+  relevantProjects?: string;
+  interviewNotes?: string;
+  followUpMessageDraft?: string;
 };

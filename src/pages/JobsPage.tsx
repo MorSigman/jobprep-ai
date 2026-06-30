@@ -95,7 +95,7 @@ function JobsPage({ jobs, onSelectJob, onAddJob, onUpdateJob }: Props) {
           {showForm ? "סגור טופס" : "+ הוספת משרה"}
         </button>
         <p className="local-data-notice">
-          המידע נשמר מקומית בדפדפן במחשב שלך. אין שליחה לשרת חיצוני.
+          המידע נשמר מקומית בדפדפן באמצעות IndexedDB. אין שליחה לשרת חיצוני.
         </p>
       </div>
 

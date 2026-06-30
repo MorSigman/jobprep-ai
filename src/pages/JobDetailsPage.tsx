@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { JobApplication } from "../types/job";
 import AddJobForm from "../components/AddJobForm";
 
@@ -14,46 +14,140 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: "נדחתה",
 };
 
-type Tab = "phone" | "professional" | "personal";
+type PrepField =
+  | "companyResearch"
+  | "keyRequirements"
+  | "skillsToLearn"
+  | "phoneScreenNotes"
+  | "technicalQuestions"
+  | "personalQuestions"
+  | "relevantProjects"
+  | "interviewNotes"
+  | "followUpMessageDraft";
 
-const TAB_LABELS: { id: Tab; label: string }[] = [
-  { id: "phone", label: "שיחה טלפונית" },
-  { id: "professional", label: "ראיון מקצועי" },
-  { id: "personal", label: "ראיון אישי" },
+const PREP_SECTIONS: { field: PrepField; title: string; helper: string }[] = [
+  {
+    field: "companyResearch",
+    title: "מחקר על החברה",
+    helper: "כתבי מה שמצאת על החברה — מוצרים, תרבות, לקוחות, גיוסים אחרונים.",
+  },
+  {
+    field: "keyRequirements",
+    title: "דרישות מרכזיות מהמשרה",
+    helper: "העתיקי את הדרישות החשובות ביותר מתיאור המשרה.",
+  },
+  {
+    field: "skillsToLearn",
+    title: "מה אני צריכה ללמוד",
+    helper: "ציינו טכנולוגיות, כישורים או נושאים שכדאי לחזק לפני הראיון.",
+  },
+  {
+    field: "phoneScreenNotes",
+    title: "הכנה לשיחה טלפונית",
+    helper: "רשמי נקודות עיקריות שתרצי להגיד בשיחה הראשונה עם המגייסת.",
+  },
+  {
+    field: "technicalQuestions",
+    title: "שאלות מקצועיות אפשריות",
+    helper: "כתבי שאלות טכניות שעלולות לעלות בראיון ותשובות מוצעות.",
+  },
+  {
+    field: "personalQuestions",
+    title: "שאלות אישיות אפשריות",
+    helper: "כתבי שאלות אישיות / התנהגותיות צפויות ותשובות מוצעות.",
+  },
+  {
+    field: "relevantProjects",
+    title: "פרויקטים רלוונטיים שלי",
+    helper: "ציינו אילו פרויקטים מ-GitHub שלך רלוונטיים לתפקיד זה ולמה.",
+  },
+  {
+    field: "interviewNotes",
+    title: "הערות אחרי שיחה / ראיון",
+    helper: "לאחר כל שיחה — כתבי מה עלה, מה הרגשת, ומה לשפר.",
+  },
+  {
+    field: "followUpMessageDraft",
+    title: "טיוטת הודעת המשך",
+    helper: "כתבי טיוטה להודעת Follow-Up לאחר הראיון.",
+  },
 ];
 
-const DEMO_QUESTIONS: Record<Tab, { q: string; a: string }[]> = {
-  phone: [
-    {
-      q: "ספרי על עצמך בקצרה.",
-      a: "אני מפתחת פרונטאנד עם ניסיון ב-React ו-TypeScript. אני מחפשת תפקיד ראשון בהייטק.",
-    },
-    {
-      q: "למה את מעוניינת בחברה שלנו?",
-      a: "נתון דמו — תשובה תותאם למשרה ספציפית.",
-    },
-  ],
-  professional: [
-    {
-      q: "מה ההבדל בין state ל-props ב-React?",
-      a: "State הוא מידע פנימי של קומפוננטה. Props הוא מידע שמועבר מקומפוננטת אב.",
-    },
-    {
-      q: "מה זה TypeScript ולמה משתמשים בו?",
-      a: "TypeScript הוא JavaScript עם טיפוסים סטטיים. משתמשים בו למניעת באגים ולשיפור תחזוקה.",
-    },
-  ],
-  personal: [
-    {
-      q: "ספרי על חולשה שלך.",
-      a: "נתון דמו — תשובה תותאם למשרה ספציפית.",
-    },
-    {
-      q: "איפה את רואה את עצמך בעוד שנתיים?",
-      a: "נתון דמו — תשובה תותאם למשרה ספציפית.",
-    },
-  ],
+function toLocalDateStr(): string {
+  const d = new Date();
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+type PrepSectionProps = {
+  id: string;
+  title: string;
+  helper: string;
+  value: string;
+  onSave: (value: string) => void;
 };
+
+function PrepSection({ id, title, helper, value, onSave }: PrepSectionProps) {
+  const [draft, setDraft] = useState(value);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  const isDirty = draft !== value;
+
+  function handleSave() {
+    onSave(draft);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  }
+
+  function handleCancel() {
+    setDraft(value);
+  }
+
+  return (
+    <div className="card">
+      <h3 className="card__title">{title}</h3>
+      <p className="prep-section__helper">{helper}</p>
+      <textarea
+        id={id}
+        className="form-input form-textarea prep-section__textarea"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        aria-label={title}
+        rows={4}
+      />
+      {isDirty && (
+        <div className="btn-row prep-section__actions">
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            onClick={handleSave}
+          >
+            שמירה
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={handleCancel}
+          >
+            ביטול
+          </button>
+        </div>
+      )}
+      {saved && !isDirty && (
+        <p className="prep-section__saved" role="status">
+          השינויים נשמרו מקומית.
+        </p>
+      )}
+    </div>
+  );
+}
 
 type Props = {
   job: JobApplication;
@@ -65,7 +159,6 @@ type Props = {
 function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("phone");
 
   function handleSave(updatedJob: JobApplication) {
     onUpdate(updatedJob);
@@ -74,6 +167,10 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
 
   function handleDeleteConfirmed() {
     onDelete(job.id);
+  }
+
+  function savePrep(field: PrepField, value: string) {
+    onUpdate({ ...job, [field]: value, updatedAt: toLocalDateStr() } as JobApplication);
   }
 
   if (mode === "edit") {
@@ -124,9 +221,7 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
 
       {deleteConfirm && (
         <div className="delete-confirm" role="alert">
-          <span className="delete-confirm__text">
-            האם למחוק את המשרה הזו?
-          </span>
+          <span className="delete-confirm__text">האם למחוק את המשרה הזו?</span>
           <div className="btn-row">
             <button
               type="button"
@@ -206,9 +301,7 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
       <div className="card-row">
         <div className="card card--grow">
           <h3 className="card__title">תיאור המשרה</h3>
-          <p className="card__text">
-            {job.jobDescription || "לא הוזן תיאור."}
-          </p>
+          <p className="card__text">{job.jobDescription || "לא הוזן תיאור."}</p>
         </div>
         {job.nextAction && (
           <div className="card card--accent">
@@ -225,28 +318,23 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
         </div>
       )}
 
-      <div className="card">
-        <div className="tab-bar">
-          {TAB_LABELS.map((t) => (
-            <button
-              key={t.id}
-              className={`tab-btn${activeTab === t.id ? " active" : ""}`}
-              onClick={() => setActiveTab(t.id)}
-              aria-current={activeTab === t.id ? "true" : undefined}
-            >
-              {t.label}
-            </button>
-          ))}
+      <div className="prep-workspace">
+        <div className="prep-workspace__header">
+          <h3 className="prep-workspace__title">הכנה לראיון</h3>
+          <p className="prep-workspace__privacy">
+            המידע בעמוד זה נשמר מקומית במחשב שלך ואינו נשלח לשרת חיצוני.
+          </p>
         </div>
-
-        <div className="qa-list">
-          {DEMO_QUESTIONS[activeTab].map((item, i) => (
-            <div key={i} className="qa-item">
-              <p className="qa-item__question">{item.q}</p>
-              <p className="qa-item__answer">{item.a}</p>
-            </div>
-          ))}
-        </div>
+        {PREP_SECTIONS.map((s) => (
+          <PrepSection
+            key={s.field}
+            id={`prep-${s.field}`}
+            title={s.title}
+            helper={s.helper}
+            value={job[s.field] ?? ""}
+            onSave={(v) => savePrep(s.field, v)}
+          />
+        ))}
       </div>
     </div>
   );

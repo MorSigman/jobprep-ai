@@ -1,52 +1,34 @@
 import "./App.css";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import AppLayout from "./layouts/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import JobsPage from "./pages/JobsPage";
 import JobDetailsPage from "./pages/JobDetailsPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import PersonalInterviewPage from "./pages/PersonalInterviewPage";
-import { demoJobs } from "./data/demoJobs";
+import { downloadJobsBackup } from "./lib/backup";
+import { useJobs } from "./hooks/useJobs";
 import type { PageName } from "./types/navigation";
 import type { JobApplication } from "./types/job";
-
-const LOCAL_STORAGE_KEY = "jobprep-ai-jobs";
-
-function loadJobs(): JobApplication[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw) as JobApplication[];
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {
-    // corrupted storage — fall back to demo data
-  }
-  return demoJobs;
-}
 
 function App() {
   const [activePage, setActivePage] = useState<PageName>("dashboard");
   const [selectedJob, setSelectedJob] = useState<JobApplication | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [jobs, setJobs] = useState<JobApplication[]>(loadJobs);
 
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(jobs));
-  }, [jobs]);
+  const { jobs, loading, error, addJob, updateJob, deleteJob, replaceJobs } =
+    useJobs();
 
   function handleAddJob(job: JobApplication) {
-    setJobs((prev) => [job, ...prev]);
+    addJob(job);
   }
 
   function handleUpdateJob(updatedJob: JobApplication) {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === updatedJob.id ? updatedJob : j))
-    );
+    updateJob(updatedJob);
   }
 
   function handleDeleteJob(id: string) {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
+    deleteJob(id);
     setSelectedJob(null);
     setActivePage("jobs");
   }
@@ -64,10 +46,25 @@ function App() {
     }
   }
 
+  function handleExport() {
+    downloadJobsBackup(jobs);
+  }
+
+  function handleImport(importedJobs: JobApplication[]) {
+    replaceJobs(importedJobs);
+  }
+
   function renderPage() {
     switch (activePage) {
       case "dashboard":
-        return <DashboardPage jobs={jobs} onNavigate={handleNavigate} />;
+        return (
+          <DashboardPage
+            jobs={jobs}
+            onNavigate={handleNavigate}
+            onExport={handleExport}
+            onImport={handleImport}
+          />
+        );
       case "jobs":
         return (
           <JobsPage
@@ -111,7 +108,16 @@ function App() {
       theme={theme}
       onToggleTheme={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
     >
-      {renderPage()}
+      {error && (
+        <div className="db-error-banner" role="alert">
+          {error}
+        </div>
+      )}
+      {loading ? (
+        <p className="loading-state">טוען נתונים...</p>
+      ) : (
+        renderPage()
+      )}
     </AppLayout>
   );
 }
