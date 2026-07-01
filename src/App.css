@@ -2317,3 +2317,199 @@ button {
 .theme-dark .recommended-question-expanded {
   background: var(--surface-2);
 }
+
+/* ─── Practice Mode ─────────────────────────────────────────────────────── */
+
+.pq-practice-btn {
+  margin-right: 8px;
+}
+
+.practice-mode-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.practice-mode-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.practice-mode-header__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.practice-mode-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.practice-stats {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.practice-stats strong {
+  color: var(--text);
+}
+
+.practice-mode-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.practice-progress {
+  font-size: 14px;
+  color: var(--text-2);
+  text-align: center;
+  margin: 0;
+}
+
+.practice-progress strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.practice-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.practice-past-hint {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 0;
+}
+
+.practice-card-question {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.practice-card-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.practice-answer-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.practice-answer-section > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.practice-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.practice-result-button {
+  flex: 1;
+  min-width: 120px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 2px solid;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+  text-align: center;
+}
+
+.practice-result-button:hover {
+  transform: scale(1.02);
+}
+
+.practice-result-button:active {
+  transform: scale(0.98);
+}
+
+.practice-result-button--known {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #6ee7b7;
+}
+
+.practice-result-button--known:hover {
+  background: #a7f3d0;
+}
+
+.practice-result-button--review {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.practice-result-button--review:hover {
+  background: #fde68a;
+}
+
+.practice-nav {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+/* Dark mode — practice */
+
+.theme-dark .practice-mode-header,
+.theme-dark .practice-card {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+.theme-dark .practice-result-button--known {
+  background: #065f46;
+  color: #d1fae5;
+  border-color: #059669;
+}
+
+.theme-dark .practice-result-button--known:hover {
+  background: #047857;
+}
+
+.theme-dark .practice-result-button--review {
+  background: #78350f;
+  color: #fef3c7;
+  border-color: #d97706;
+}
+
+.theme-dark .practice-result-button--review:hover {
+  background: #92400e;
+}

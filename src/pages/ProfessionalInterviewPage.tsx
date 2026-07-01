@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type {
   ProfessionalQuestion,
   QuestionCategory,
   QuestionDifficulty,
 } from "../types/professionalQuestion";
 import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
+import { usePracticeProgress } from "../hooks/usePracticeProgress";
+import type { ProgressMap } from "../hooks/usePracticeProgress";
 
 type ViewMode = "cards" | "compact" | "table";
 
@@ -360,6 +362,273 @@ function QuestionsTable({
   );
 }
 
+// ─── Practice Mode ──────────────────────────────────────────────────────────
+
+type PracticeModeProps = {
+  questions: ProfessionalQuestion[];
+  progress: ProgressMap;
+  onRecordResult: (id: string, result: "known" | "review") => void;
+  onResetProgress: () => void;
+  onExit: () => void;
+};
+
+function PracticeMode({
+  questions,
+  progress,
+  onRecordResult,
+  onResetProgress,
+  onExit,
+}: PracticeModeProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [reviewOnly, setReviewOnly] = useState(false);
+
+  const questionsRef = useRef(questions);
+  useEffect(() => {
+    if (questions !== questionsRef.current) {
+      questionsRef.current = questions;
+      setCurrentIndex(0);
+      setShowAnswer(false);
+    }
+  }, [questions]);
+
+  const practiceList = useMemo(
+    () =>
+      reviewOnly
+        ? questions.filter((q) => {
+            const p = progress[q.id];
+            return p && (p.lastResult === "review" || p.timesNeedsReview > 0);
+          })
+        : questions,
+    [questions, progress, reviewOnly]
+  );
+
+  const safeIndex = Math.min(currentIndex, Math.max(0, practiceList.length - 1));
+  const current = practiceList[safeIndex];
+
+  const stats = useMemo(
+    () =>
+      questions.reduce(
+        (acc, q) => {
+          const p = progress[q.id];
+          if (p) {
+            acc.practiced += 1;
+            acc.known += p.timesKnown;
+            acc.review += p.timesNeedsReview;
+          }
+          return acc;
+        },
+        { practiced: 0, known: 0, review: 0 }
+      ),
+    [questions, progress]
+  );
+
+  function goNext() {
+    if (safeIndex < practiceList.length - 1) {
+      setCurrentIndex(safeIndex + 1);
+    }
+    setShowAnswer(false);
+  }
+
+  function goPrev() {
+    if (safeIndex > 0) {
+      setCurrentIndex(safeIndex - 1);
+      setShowAnswer(false);
+    }
+  }
+
+  function handleResult(result: "known" | "review") {
+    if (!current) return;
+    onRecordResult(current.id, result);
+    setShowAnswer(false);
+    if (safeIndex < practiceList.length - 1) {
+      setCurrentIndex(safeIndex + 1);
+    }
+  }
+
+  function handleReset() {
+    if (window.confirm("האם לאפס את התקדמות התרגול? השאלות עצמן לא יימחקו.")) {
+      onResetProgress();
+    }
+  }
+
+  function handleToggleReview() {
+    setReviewOnly((v) => !v);
+    setCurrentIndex(0);
+    setShowAnswer(false);
+  }
+
+  return (
+    <div className="practice-mode-panel">
+      <div className="practice-mode-header">
+        <div className="practice-mode-header__top">
+          <h3 className="practice-mode-title">מצב תרגול</h3>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={onExit}
+          >
+            יציאה מתרגול
+          </button>
+        </div>
+
+        <div className="practice-stats">
+          <span>תורגלו: <strong>{stats.practiced}</strong></span>
+          <span>ידעתי: <strong>{stats.known}</strong></span>
+          <span>צריך חזרה: <strong>{stats.review}</strong></span>
+        </div>
+
+        <div className="practice-mode-controls">
+          <button
+            type="button"
+            className={`btn btn--sm ${reviewOnly ? "btn--primary" : "btn--secondary"}`}
+            aria-pressed={reviewOnly}
+            onClick={handleToggleReview}
+          >
+            {reviewOnly ? "✓ שאלות לחזרה בלבד" : "תרגול שאלות שצריך לחזור עליהן"}
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={handleReset}
+          >
+            איפוס התקדמות תרגול
+          </button>
+        </div>
+      </div>
+
+      {practiceList.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state__text">
+            {reviewOnly
+              ? "אין כרגע שאלות שסומנו לחזרה."
+              : "אין שאלות לתרגול לפי הסינון הנוכחי."}
+          </p>
+        </div>
+      ) : (
+        <>
+          <p className="practice-progress">
+            שאלה <strong>{safeIndex + 1}</strong> מתוך {practiceList.length}
+          </p>
+
+          <div className="practice-card">
+            <div className="pq-card__meta">
+              <span className="chip chip--category">
+                {CATEGORY_LABELS[current.category]}
+              </span>
+              <span className="chip chip--topic chip--sm">{current.topic}</span>
+              <span
+                className={`chip chip--difficulty chip--difficulty-${current.difficulty} chip--sm`}
+              >
+                {DIFFICULTY_LABELS[current.difficulty]}
+              </span>
+            </div>
+
+            {progress[current.id] && (
+              <p className="practice-past-hint">
+                תורגל {progress[current.id].timesPracticed} פעמים ·{" "}
+                פעם אחרונה: {progress[current.id].lastPracticedAt}
+              </p>
+            )}
+
+            <h3 className="practice-card-question">{current.question}</h3>
+
+            <button
+              type="button"
+              className="btn btn--primary"
+              aria-expanded={showAnswer}
+              onClick={() => setShowAnswer((v) => !v)}
+            >
+              {showAnswer ? "הסתר תשובה" : "הצג תשובה"}
+            </button>
+
+            {showAnswer && (
+              <div className="practice-card-answer" aria-live="polite">
+                <div className="practice-answer-section">
+                  <p className="pq-expandable__label">תשובה קצרה</p>
+                  <p>{current.shortAnswer}</p>
+                </div>
+
+                {current.simpleExplanation && (
+                  <div className="practice-answer-section">
+                    <p className="pq-expandable__label">הסבר פשוט</p>
+                    <p>{current.simpleExplanation}</p>
+                  </div>
+                )}
+
+                {current.example && (
+                  <div className="practice-answer-section">
+                    <p className="pq-expandable__label">דוגמה</p>
+                    <p>{current.example}</p>
+                  </div>
+                )}
+
+                {current.whatToMention.length > 0 && (
+                  <div className="practice-answer-section">
+                    <p className="pq-expandable__label">מה כדאי להזכיר</p>
+                    <ul className="pq-expandable__list">
+                      {current.whatToMention.map((item, i) => (
+                        <li key={i}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {current.commonMistakes.length > 0 && (
+                  <div className="practice-answer-section">
+                    <p className="pq-expandable__label">טעויות נפוצות</p>
+                    <ul className="pq-expandable__list pq-expandable__list--warn">
+                      {current.commonMistakes.map((m, i) => (
+                        <li key={i}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="practice-actions">
+                  <button
+                    type="button"
+                    className="practice-result-button practice-result-button--known"
+                    onClick={() => handleResult("known")}
+                  >
+                    ידעתי ✓
+                  </button>
+                  <button
+                    type="button"
+                    className="practice-result-button practice-result-button--review"
+                    onClick={() => handleResult("review")}
+                  >
+                    צריך חזרה ↺
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="practice-nav">
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={safeIndex === 0}
+                onClick={goPrev}
+              >
+                שאלה קודמת
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                disabled={safeIndex >= practiceList.length - 1}
+                onClick={goNext}
+              >
+                שאלה הבאה
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Add form ───────────────────────────────────────────────────────────────
 
 const BLANK_FORM = {
@@ -379,7 +648,9 @@ const BLANK_FORM = {
 
 function ProfessionalInterviewPage() {
   const { questions, addQuestion, deleteUserQuestion } = useProfessionalQuestions();
+  const { progress, recordResult, resetProgress } = usePracticeProgress();
 
+  const [practiceMode, setPracticeMode] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("compact");
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<QuestionCategory | "">("");
@@ -560,6 +831,16 @@ function ProfessionalInterviewPage() {
         >
           {showAddForm ? "ביטול" : "+ הוספת שאלה"}
         </button>
+        <button
+          type="button"
+          className={`btn ${practiceMode ? "btn--primary" : "btn--secondary"} pq-practice-btn`}
+          onClick={() => {
+            setPracticeMode((v) => !v);
+            if (!practiceMode) setShowAddForm(false);
+          }}
+        >
+          {practiceMode ? "יציאה מתרגול" : "מצב תרגול"}
+        </button>
         {addedMsg && (
           <span className="pq-added-msg" role="status">
             השאלה נוספה ונשמרה מקומית.
@@ -715,8 +996,16 @@ function ProfessionalInterviewPage() {
         </div>
       )}
 
-      {/* Results */}
-      {filtered.length === 0 ? (
+      {/* Results or Practice Mode */}
+      {practiceMode ? (
+        <PracticeMode
+          questions={filtered}
+          progress={progress}
+          onRecordResult={recordResult}
+          onResetProgress={resetProgress}
+          onExit={() => setPracticeMode(false)}
+        />
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
           <p className="empty-state__text">לא נמצאו שאלות התואמות לחיפוש.</p>
         </div>
