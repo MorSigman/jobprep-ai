@@ -15,6 +15,8 @@ const navItems: { label: string; page: PageName }[] = [
   { label: "עמוד משרה", page: "job-details" },
   { label: "פרויקטים", page: "projects" },
   { label: "ראיון אישי", page: "personal-interview" },
+  { label: "ראיון מקצועי", page: "professional-interview" },
+  { label: "הפרופיל שלי", page: "profile" },
 ];
 
 function AppLayout({

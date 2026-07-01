@@ -27,6 +27,8 @@ exports/
 *.pdf
 *.docx
 *.xlsx
+*.xls
+*.csv
 
 # Logs
 *.log

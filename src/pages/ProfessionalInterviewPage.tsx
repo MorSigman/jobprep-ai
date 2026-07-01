@@ -1,0 +1,486 @@
+import { useState, useMemo } from "react";
+import type {
+  ProfessionalQuestion,
+  QuestionCategory,
+  QuestionDifficulty,
+} from "../types/professionalQuestion";
+import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
+
+const ALL_CATEGORIES: QuestionCategory[] = [
+  "General",
+  "Data Analyst",
+  "SQL",
+  "QA",
+  "Frontend",
+  "Backend",
+  "JavaScript",
+  "Cyber",
+  "Git",
+  "Projects",
+  "Technical Thinking",
+];
+
+const CATEGORY_LABELS: Record<QuestionCategory, string> = {
+  General: "כללי",
+  "Data Analyst": "Data Analyst",
+  SQL: "SQL",
+  QA: "QA",
+  Frontend: "Frontend",
+  Backend: "Backend",
+  JavaScript: "JavaScript",
+  Cyber: "סייבר",
+  Git: "Git",
+  Projects: "פרויקטים",
+  "Technical Thinking": "חשיבה טכנית",
+};
+
+const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
+  basic: "בסיסי",
+  intermediate: "בינוני",
+};
+
+type CardProps = {
+  q: ProfessionalQuestion;
+  onDelete?: (id: string) => void;
+};
+
+function QuestionCard({ q, onDelete }: CardProps) {
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [showExample, setShowExample] = useState(false);
+  const [showFull, setShowFull] = useState(false);
+
+  return (
+    <div className={`pq-card${q.source === "user" ? " pq-card--user" : ""}`}>
+      <div className="pq-card__header">
+        <div className="pq-card__meta">
+          <span className="chip chip--category">
+            {CATEGORY_LABELS[q.category]}
+          </span>
+          <span className={`chip chip--difficulty chip--difficulty-${q.difficulty}`}>
+            {DIFFICULTY_LABELS[q.difficulty]}
+          </span>
+          {q.source === "user" && (
+            <span className="chip chip--user">שאלה שלי</span>
+          )}
+        </div>
+        {onDelete && q.source === "user" && (
+          <button
+            type="button"
+            className="pq-card__delete"
+            onClick={() => onDelete(q.id)}
+            title="מחיקת שאלה"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      <p className="pq-card__topic">{q.topic}</p>
+      <h3 className="pq-card__question">{q.question}</h3>
+      <p className="pq-card__answer">{q.shortAnswer}</p>
+
+      <div className="pq-card__toggles">
+        <button
+          type="button"
+          className="pq-toggle-btn"
+          onClick={() => setShowExplanation((v) => !v)}
+        >
+          {showExplanation ? "− הסבר פשוט" : "+ הסבר פשוט"}
+        </button>
+        <button
+          type="button"
+          className="pq-toggle-btn"
+          onClick={() => setShowExample((v) => !v)}
+        >
+          {showExample ? "− דוגמה" : "+ דוגמה"}
+        </button>
+        <button
+          type="button"
+          className="pq-toggle-btn"
+          onClick={() => setShowFull((v) => !v)}
+        >
+          {showFull ? "− פרטים מלאים" : "+ פרטים מלאים"}
+        </button>
+      </div>
+
+      {showExplanation && (
+        <div className="pq-expandable">
+          <p className="pq-expandable__label">הסבר פשוט</p>
+          <p className="pq-expandable__text">{q.simpleExplanation}</p>
+        </div>
+      )}
+
+      {showExample && (
+        <div className="pq-expandable">
+          <p className="pq-expandable__label">דוגמה</p>
+          <p className="pq-expandable__text">{q.example}</p>
+        </div>
+      )}
+
+      {showFull && (
+        <div className="pq-expandable">
+          {q.whatToMention.length > 0 && (
+            <>
+              <p className="pq-expandable__label">מה כדאי להזכיר</p>
+              <ul className="pq-expandable__list">
+                {q.whatToMention.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {q.commonMistakes.length > 0 && (
+            <>
+              <p className="pq-expandable__label">טעויות נפוצות</p>
+              <ul className="pq-expandable__list pq-expandable__list--warn">
+                {q.commonMistakes.map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {q.tags.length > 0 && (
+            <div className="chip-row" style={{ marginTop: "8px" }}>
+              {q.tags.map((tag) => (
+                <span key={tag} className="chip chip--tag">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const BLANK_FORM = {
+  category: "General" as QuestionCategory,
+  topic: "",
+  difficulty: "basic" as QuestionDifficulty,
+  question: "",
+  shortAnswer: "",
+  simpleExplanation: "",
+  example: "",
+  whatToMentionRaw: "",
+  commonMistakesRaw: "",
+  tagsRaw: "",
+};
+
+function ProfessionalInterviewPage() {
+  const { questions, addQuestion, deleteUserQuestion } = useProfessionalQuestions();
+
+  const [search, setSearch] = useState("");
+  const [filterCategory, setFilterCategory] = useState<QuestionCategory | "">("");
+  const [filterDifficulty, setFilterDifficulty] = useState<QuestionDifficulty | "">("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [form, setForm] = useState(BLANK_FORM);
+  const [formError, setFormError] = useState("");
+  const [addedMsg, setAddedMsg] = useState(false);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return questions.filter((item) => {
+      const matchSearch =
+        !q ||
+        item.question.toLowerCase().includes(q) ||
+        item.topic.toLowerCase().includes(q) ||
+        item.shortAnswer.toLowerCase().includes(q) ||
+        item.tags.some((t) => t.toLowerCase().includes(q));
+      const matchCategory = !filterCategory || item.category === filterCategory;
+      const matchDifficulty =
+        !filterDifficulty || item.difficulty === filterDifficulty;
+      return matchSearch && matchCategory && matchDifficulty;
+    });
+  }, [questions, search, filterCategory, filterDifficulty]);
+
+  function handleSubmitQuestion(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.question.trim() || !form.shortAnswer.trim()) {
+      setFormError("יש למלא לפחות שאלה ותשובה קצרה.");
+      return;
+    }
+    addQuestion({
+      category: form.category,
+      topic: form.topic.trim() || form.category,
+      difficulty: form.difficulty,
+      question: form.question.trim(),
+      shortAnswer: form.shortAnswer.trim(),
+      simpleExplanation: form.simpleExplanation.trim(),
+      example: form.example.trim(),
+      whatToMention: form.whatToMentionRaw
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      commonMistakes: form.commonMistakesRaw
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      tags: form.tagsRaw
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    });
+    setForm(BLANK_FORM);
+    setFormError("");
+    setShowAddForm(false);
+    setAddedMsg(true);
+    setTimeout(() => setAddedMsg(false), 4000);
+  }
+
+  function updateForm(field: keyof typeof BLANK_FORM, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  const categoryOptions = ALL_CATEGORIES.filter((cat) =>
+    questions.some((q) => q.category === cat)
+  );
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h2 className="page-header__title">ראיון מקצועי</h2>
+        <p className="page-header__subtitle">
+          שאלות מקצועיות לפי קטגוריה עם הסברים ודוגמאות. כל השאלות שתוסיפי
+          נשמרות מקומית בלבד.
+        </p>
+      </div>
+
+      <div className="pq-filters card">
+        <input
+          type="search"
+          className="form-input pq-search"
+          placeholder="חיפוש שאלה, נושא או תגית..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          aria-label="חיפוש שאלות"
+        />
+        <div className="pq-filter-row">
+          <select
+            className="form-input pq-select"
+            value={filterCategory}
+            onChange={(e) => setFilterCategory(e.target.value as QuestionCategory | "")}
+            aria-label="סינון לפי קטגוריה"
+          >
+            <option value="">כל הקטגוריות</option>
+            {categoryOptions.map((cat) => (
+              <option key={cat} value={cat}>
+                {CATEGORY_LABELS[cat]}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className="form-input pq-select"
+            value={filterDifficulty}
+            onChange={(e) =>
+              setFilterDifficulty(e.target.value as QuestionDifficulty | "")
+            }
+            aria-label="סינון לפי רמת קושי"
+          >
+            <option value="">כל הרמות</option>
+            <option value="basic">בסיסי</option>
+            <option value="intermediate">בינוני</option>
+          </select>
+
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={() => {
+              setSearch("");
+              setFilterCategory("");
+              setFilterDifficulty("");
+            }}
+          >
+            איפוס
+          </button>
+        </div>
+
+        <p className="pq-count">
+          {filtered.length} שאלות מתוך {questions.length}
+        </p>
+      </div>
+
+      <div className="pq-add-row">
+        <button
+          type="button"
+          className="btn btn--primary"
+          onClick={() => setShowAddForm((v) => !v)}
+        >
+          {showAddForm ? "ביטול" : "+ הוספת שאלה"}
+        </button>
+        {addedMsg && (
+          <span className="pq-added-msg" role="status">
+            השאלה נוספה ונשמרה מקומית.
+          </span>
+        )}
+      </div>
+
+      {showAddForm && (
+        <div className="card pq-add-form">
+          <h3 className="card__title">הוספת שאלה מקצועית</h3>
+          <form onSubmit={handleSubmitQuestion} noValidate>
+            <div className="pq-form-row">
+              <div className="form-group">
+                <label className="form-label">קטגוריה</label>
+                <select
+                  className="form-input"
+                  value={form.category}
+                  onChange={(e) => updateForm("category", e.target.value)}
+                >
+                  {ALL_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {CATEGORY_LABELS[cat]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">רמת קושי</label>
+                <select
+                  className="form-input"
+                  value={form.difficulty}
+                  onChange={(e) => updateForm("difficulty", e.target.value)}
+                >
+                  <option value="basic">בסיסי</option>
+                  <option value="intermediate">בינוני</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">נושא</label>
+              <input
+                type="text"
+                className="form-input"
+                value={form.topic}
+                onChange={(e) => updateForm("topic", e.target.value)}
+                placeholder="לדוגמה: React hooks"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">שאלה *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={form.question}
+                onChange={(e) => updateForm("question", e.target.value)}
+                placeholder="מה השאלה?"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">תשובה קצרה *</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={3}
+                value={form.shortAnswer}
+                onChange={(e) => updateForm("shortAnswer", e.target.value)}
+                placeholder="1–3 משפטים"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">הסבר פשוט (אופציונלי)</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={2}
+                value={form.simpleExplanation}
+                onChange={(e) => updateForm("simpleExplanation", e.target.value)}
+                placeholder="אנלוגיה או הסבר בשפה פשוטה"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">דוגמה (אופציונלי)</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={2}
+                value={form.example}
+                onChange={(e) => updateForm("example", e.target.value)}
+                placeholder="דוגמת קוד או מקרה ספציפי"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">מה כדאי להזכיר (שורה לכל נקודה)</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={3}
+                value={form.whatToMentionRaw}
+                onChange={(e) => updateForm("whatToMentionRaw", e.target.value)}
+                placeholder={"נקודה ראשונה\nנקודה שנייה\nנקודה שלישית"}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">טעויות נפוצות (שורה לכל טעות)</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={2}
+                value={form.commonMistakesRaw}
+                onChange={(e) => updateForm("commonMistakesRaw", e.target.value)}
+                placeholder={"טעות ראשונה\nטעות שנייה"}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">תגיות (מופרדות בפסיק)</label>
+              <input
+                type="text"
+                className="form-input"
+                value={form.tagsRaw}
+                onChange={(e) => updateForm("tagsRaw", e.target.value)}
+                placeholder="react, hooks, state"
+              />
+            </div>
+
+            {formError && (
+              <p className="pq-form-error" role="alert">
+                {formError}
+              </p>
+            )}
+
+            <div className="btn-row" style={{ marginTop: "16px" }}>
+              <button type="submit" className="btn btn--primary">
+                הוספת שאלה
+              </button>
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setForm(BLANK_FORM);
+                  setFormError("");
+                  setShowAddForm(false);
+                }}
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <p className="empty-state__text">לא נמצאו שאלות התואמות לחיפוש.</p>
+        </div>
+      ) : (
+        <div className="pq-list">
+          {filtered.map((q) => (
+            <QuestionCard
+              key={q.id}
+              q={q}
+              onDelete={q.source === "user" ? deleteUserQuestion : undefined}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default ProfessionalInterviewPage;

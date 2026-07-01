@@ -3,4 +3,6 @@ export type PageName =
   | "jobs"
   | "job-details"
   | "projects"
-  | "personal-interview";
+  | "personal-interview"
+  | "professional-interview"
+  | "profile";

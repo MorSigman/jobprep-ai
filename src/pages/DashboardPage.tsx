@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import type { JobApplication } from "../types/job";
 import type { PageName } from "../types/navigation";
-import { parseJobsBackupFile } from "../lib/backup";
+import { parseJobsBackupFile, exportJobsToExcel } from "../lib/backup";
 
 type Props = {
   jobs: JobApplication[];
@@ -68,6 +68,15 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
   function handleExportClick() {
     onExport();
     showMessage({ type: "success", text: "קובץ הגיבוי נוצר בהצלחה." });
+  }
+
+  function handleCsvExportClick() {
+    if (jobs.length === 0) {
+      showMessage({ type: "error", text: "אין משרות לייצוא." });
+      return;
+    }
+    exportJobsToExcel(jobs);
+    showMessage({ type: "success", text: "קובץ האקסל נוצר בהצלחה." });
   }
 
   function handleImportClick() {
@@ -284,9 +293,10 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
       </div>
 
       <div className="card">
-        <h3 className="card__title">גיבוי מקומי</h3>
+        <h3 className="card__title">גיבוי וייצוא</h3>
         <p className="card__text">
-          הגיבוי נשמר כקובץ מקומי במחשב שלך. אין העלאה לשרת חיצוני.
+          גיבוי JSON מיועד לשחזור מלא של המערכת. ייצוא לאקסל יוצר טבלת מעקב
+          מסודרת מימין לשמאל, עם סינון וצפייה נוחה.
         </p>
         <div className="btn-row" style={{ marginTop: "16px" }}>
           <button
@@ -302,6 +312,13 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
             onClick={handleImportClick}
           >
             ייבוא גיבוי
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            onClick={handleCsvExportClick}
+          >
+            ייצוא לאקסל
           </button>
           <input
             ref={fileInputRef}

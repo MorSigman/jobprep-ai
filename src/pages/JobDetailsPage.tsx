@@ -1,6 +1,12 @@
 import { useState, useEffect } from "react";
 import type { JobApplication } from "../types/job";
+import type { UserProfile } from "../types/profile";
 import AddJobForm from "../components/AddJobForm";
+import {
+  generateCvTailoringSuggestions,
+  isProfileEmpty,
+  type CvTailoringSuggestions,
+} from "../lib/cvTailoring";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -154,11 +160,112 @@ type Props = {
   onBack: () => void;
   onUpdate: (job: JobApplication) => void;
   onDelete: (id: string) => void;
+  profile?: UserProfile;
 };
 
-function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
+function CvTailoringResults({ suggestions }: { suggestions: CvTailoringSuggestions }) {
+  const {
+    matchingKeywords,
+    missingKeywords,
+    recommendedToHighlight,
+    addOnlyIfTrue,
+    suggestedSimplePhrases,
+    recommendedToReduceOrRemove,
+    warnings,
+  } = suggestions;
+
+  return (
+    <div className="cv-tailoring-results">
+      {matchingKeywords.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה כבר מתאים</p>
+          <div className="chip-row">
+            {matchingKeywords.map((kw) => (
+              <span key={kw} className="chip chip--teal">
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recommendedToHighlight.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה כדאי להבליט</p>
+          <ul className="cv-tailoring-list">
+            {recommendedToHighlight.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {missingKeywords.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה חסר או דורש בדיקה</p>
+          <div className="chip-row">
+            {missingKeywords.map((kw) => (
+              <span key={kw} className="chip chip--demo">
+                {kw}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {addOnlyIfTrue.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה להוסיף רק אם זה נכון</p>
+          <ul className="cv-tailoring-list">
+            {addOnlyIfTrue.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {recommendedToReduceOrRemove.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה כדאי לקצר או להוריד</p>
+          <ul className="cv-tailoring-list">
+            {recommendedToReduceOrRemove.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {suggestedSimplePhrases.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">ניסוחים פשוטים שאפשר לשקול</p>
+          <ul className="cv-tailoring-phrases">
+            {suggestedSimplePhrases.map((phrase, i) => (
+              <li key={i}>{phrase}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div>
+        <p className="cv-tailoring-section__title">אזהרות — לא להמציא</p>
+        <ul className="cv-tailoring-warnings">
+          {warnings.map((w, i) => (
+            <li key={i}>{w}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function JobDetailsPage({ job, onBack, onUpdate, onDelete, profile }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [suggestions, setSuggestions] = useState<CvTailoringSuggestions | null>(null);
+
+  useEffect(() => {
+    setSuggestions(null);
+  }, [job.id]);
 
   function handleSave(updatedJob: JobApplication) {
     onUpdate(updatedJob);
@@ -317,6 +424,52 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete }: Props) {
           <p className="card__text">{job.notes}</p>
         </div>
       )}
+
+      <div className="card">
+        <h3 className="card__title">התאמת קורות חיים למשרה</h3>
+
+        {!job.jobDescription.trim() ? (
+          <p className="prep-section__helper">
+            כדי לבצע התאמה, יש להוסיף תיאור משרה לכרטיס המשרה.
+          </p>
+        ) : !profile || isProfileEmpty(profile) ? (
+          <p className="prep-section__helper">
+            כדי לקבל התאמות לקורות החיים, יש למלא קודם את עמוד הפרופיל שלי.
+          </p>
+        ) : (
+          <>
+            <p className="prep-section__helper">
+              בדיקה מקומית של מידת ההתאמה בין הפרופיל שלך לדרישות המשרה.
+            </p>
+            <div className="btn-row" style={{ marginTop: "12px" }}>
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() =>
+                  setSuggestions(generateCvTailoringSuggestions(job, profile))
+                }
+              >
+                בדיקת התאמת קורות חיים
+              </button>
+              {suggestions && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setSuggestions(null)}
+                >
+                  סגירה
+                </button>
+              )}
+            </div>
+            {suggestions && <CvTailoringResults suggestions={suggestions} />}
+          </>
+        )}
+
+        <p className="prep-section__helper" style={{ marginTop: "14px" }}>
+          הבדיקה מתבצעת מקומית בלבד לפי הפרופיל ותיאור המשרה השמורים בדפדפן.
+          המידע אינו נשלח לשרת חיצוני.
+        </p>
+      </div>
 
       <div className="prep-workspace">
         <div className="prep-workspace__header">
