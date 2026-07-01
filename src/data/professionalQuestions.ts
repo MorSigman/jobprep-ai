@@ -1366,4 +1366,754 @@ export const demoProfessionalQuestions: ProfessionalQuestion[] = [
     createdAt: "2026-06-30",
     updatedAt: "2026-06-30",
   },
+
+  // ─── SQL ───────────────────────────────────────────────────────────────────
+  {
+    id: "sql-001",
+    category: "SQL",
+    topic: "בסיסי",
+    difficulty: "basic",
+    question: "מה עושה פקודת SELECT?",
+    shortAnswer:
+      "SELECT שולפת נתונים מטבלה. ניתן לבחור עמודות ספציפיות או את כולן עם *.  ",
+    simpleExplanation:
+      "SELECT היא כמו בקשה: 'תראה לי את הנתונים האלה מהטבלה הזאת.' זו הפקודה הנפוצה ביותר ב-SQL.",
+    example:
+      "SELECT name, email FROM users; — שולף רק את שמות ומיילים של כל המשתמשים.",
+    whatToMention: [
+      "SELECT בוחרת עמודות",
+      "FROM מציינת את הטבלה",
+      "* שולף את כל העמודות",
+    ],
+    commonMistakes: [
+      "לשכוח את FROM",
+      "להשתמש ב-* בטבלאות גדולות — פוגע בביצועים",
+    ],
+    tags: ["sql", "select", "שאילתה", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-002",
+    category: "SQL",
+    topic: "סינון",
+    difficulty: "basic",
+    question: "איך מסננים רשומות בטבלה?",
+    shortAnswer:
+      "משתמשים ב-WHERE כדי להגדיר תנאי. רק שורות שעומדות בתנאי יוחזרו.",
+    simpleExplanation:
+      "WHERE היא כמו מסנן — 'תציג לי רק את המשתמשים שגרים בתל אביב.' בלי WHERE מקבלים הכל.",
+    example:
+      "SELECT * FROM users WHERE city = 'תל אביב'; — מחזיר רק משתמשים מתל אביב.",
+    whatToMention: [
+      "WHERE מגדיר את תנאי הסינון",
+      "ניתן לשלב תנאים עם AND ו-OR",
+      "ניתן להשתמש ב-LIKE לחיפוש טקסט חלקי",
+    ],
+    commonMistakes: [
+      "לכתוב WHERE אחרי GROUP BY",
+      "לבלבל בין = לבין == — SQL משתמש ב-=",
+    ],
+    tags: ["sql", "where", "סינון", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-003",
+    category: "SQL",
+    topic: "מיון",
+    difficulty: "basic",
+    question: "איך ממיינים תוצאות לפי עמודה מסוימת?",
+    shortAnswer:
+      "משתמשים ב-ORDER BY. ניתן לציין ASC לסדר עולה או DESC לסדר יורד.",
+    simpleExplanation:
+      "ORDER BY היא כמו מיון רשימה — ניתן לבקש שהתוצאות יגיעו מהקטן לגדול או ההפך.",
+    example:
+      "SELECT * FROM products ORDER BY price DESC; — מציג מוצרים מהיקר לזול.",
+    whatToMention: [
+      "ASC — סדר עולה (ברירת מחדל)",
+      "DESC — סדר יורד",
+      "ניתן למיין לפי כמה עמודות",
+    ],
+    commonMistakes: [
+      "לשכוח שברירת המחדל היא ASC",
+      "למיין לפי עמודה שלא נמצאת ב-SELECT",
+    ],
+    tags: ["sql", "order by", "מיון"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-004",
+    category: "SQL",
+    topic: "JOIN",
+    difficulty: "intermediate",
+    question: "מה ההבדל בין INNER JOIN ל-LEFT JOIN?",
+    shortAnswer:
+      "INNER JOIN מחזיר רק שורות שיש להן התאמה בשתי הטבלאות. LEFT JOIN מחזיר את כל שורות הטבלה השמאלית, גם אם אין התאמה בימנית.",
+    simpleExplanation:
+      "INNER JOIN הוא חיתוך — רק מה שמשותף לשתי הטבלאות. LEFT JOIN הוא כמו לשמור את כל הלקוחות, גם אלה שעוד לא ביצעו הזמנה.",
+    example:
+      "LEFT JOIN orders ON users.id = orders.user_id — מציג את כל המשתמשים, ולמי שיש הזמנות גם את פרטיהן.",
+    whatToMention: [
+      "INNER JOIN — שורות עם התאמה בשתי טבלאות",
+      "LEFT JOIN — כל שורות הטבלה השמאלית + התאמות",
+      "NULL יופיע בעמודות הימניות כשאין התאמה",
+    ],
+    commonMistakes: [
+      "לבלבל LEFT JOIN עם RIGHT JOIN",
+      "לא לטפל ב-NULL שנוצר ב-LEFT JOIN",
+    ],
+    tags: ["sql", "join", "inner join", "left join", "בינוני"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-005",
+    category: "SQL",
+    topic: "פונקציות צבירה",
+    difficulty: "basic",
+    question: "למה משתמשים ב-COUNT, SUM, AVG?",
+    shortAnswer:
+      "COUNT סופר שורות, SUM מחשב סכום, AVG מחשב ממוצע. הן נקראות פונקציות צבירה ומאפשרות לנתח קבוצות של נתונים.",
+    simpleExplanation:
+      "הן כמו מחשבון שעובד על כל הטבלה — כמה משתמשים יש, מה סכום המכירות, מה המחיר הממוצע.",
+    example:
+      "SELECT COUNT(*) FROM orders; — מחזיר כמה הזמנות יש בסך הכל.",
+    whatToMention: [
+      "COUNT — ספירת שורות",
+      "SUM — סכום ערכים",
+      "AVG — ממוצע",
+      "MIN / MAX — ערך מינימלי ומקסימלי",
+    ],
+    commonMistakes: [
+      "COUNT(*) לעומת COUNT(column) — ההבדל ב-NULL",
+      "להשתמש בפונקציות צבירה בלי GROUP BY כשנדרש",
+    ],
+    tags: ["sql", "count", "sum", "avg", "aggregate"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-006",
+    category: "SQL",
+    topic: "קיבוץ",
+    difficulty: "intermediate",
+    question: "מתי צריך להשתמש ב-GROUP BY?",
+    shortAnswer:
+      "כשרוצים לחשב סטטיסטיקה לפי קבוצה, למשל מספר הזמנות לכל לקוח. GROUP BY מקבץ שורות לפי ערך עמודה.",
+    simpleExplanation:
+      "GROUP BY הוא כמו לסדר נתונים לתאים — 'כמה מכירות היו בכל חודש?' מחלק את הנתונים לחודשים ומחשב לכל אחד.",
+    example:
+      "SELECT city, COUNT(*) FROM users GROUP BY city; — מציג כמה משתמשים יש בכל עיר.",
+    whatToMention: [
+      "GROUP BY מאגד שורות לפי עמודה",
+      "לרוב משולב עם פונקציות צבירה",
+      "HAVING מסנן אחרי הקיבוץ (במקום WHERE)",
+    ],
+    commonMistakes: [
+      "לשים WHERE אחרי GROUP BY — צריך HAVING",
+      "לשכוח לכלול עמודות ב-SELECT שאינן ב-GROUP BY",
+    ],
+    tags: ["sql", "group by", "קיבוץ", "בינוני"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-007",
+    category: "SQL",
+    topic: "NULL",
+    difficulty: "basic",
+    question: "איך מתמודדים עם ערכי NULL?",
+    shortAnswer:
+      "NULL הוא ערך חסר — לא אפס ולא מחרוזת ריקה. משתמשים ב-IS NULL / IS NOT NULL לבדיקה, וב-COALESCE להחלפה בערך ברירת מחדל.",
+    simpleExplanation:
+      "NULL הוא כמו שדה ריק בטופס — לא ידוע. לא ניתן להשוות NULL עם = ; חייבים להשתמש ב-IS NULL.",
+    example:
+      "SELECT * FROM users WHERE phone IS NULL; — מוצא משתמשים ללא טלפון.",
+    whatToMention: [
+      "IS NULL / IS NOT NULL לבדיקה",
+      "COALESCE מחזיר ערך ברירת מחדל אם הערך הוא NULL",
+      "פונקציות צבירה מתעלמות מ-NULL",
+    ],
+    commonMistakes: [
+      "לכתוב WHERE phone = NULL — לא עובד",
+      "לא לטפל ב-NULL בחיבור מחרוזות",
+    ],
+    tags: ["sql", "null", "is null", "coalesce"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-008",
+    category: "SQL",
+    topic: "כפילויות",
+    difficulty: "intermediate",
+    question: "איך תמצאי רשומות כפולות בטבלה?",
+    shortAnswer:
+      "משתמשים ב-GROUP BY על העמודה הרלוונטית ו-HAVING COUNT(*) > 1 כדי לסנן קבוצות עם יותר מרשומה אחת.",
+    simpleExplanation:
+      "מקבצים לפי הערך שאנחנו חושדים שהוא כפול, ואז מסננים רק קבוצות עם יותר מאחד.",
+    example:
+      "SELECT email, COUNT(*) FROM users GROUP BY email HAVING COUNT(*) > 1; — מוצא מיילים שמופיעים פעמיים או יותר.",
+    whatToMention: [
+      "GROUP BY + HAVING COUNT(*) > 1",
+      "DISTINCT למניעת כפילויות בפלט",
+      "ניתן למחוק כפילויות עם DELETE + subquery",
+    ],
+    commonMistakes: [
+      "לשכוח HAVING ולנסות לסנן עם WHERE",
+      "לחפש כפילויות לפי עמודה לא ייחודית",
+    ],
+    tags: ["sql", "duplicates", "group by", "having", "בינוני"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-009",
+    category: "SQL",
+    topic: "שאילתות מורכבות",
+    difficulty: "intermediate",
+    question: "איך היית בונה שאילתה שמציגה מכירות לפי חודש?",
+    shortAnswer:
+      "חולצים את החודש מתאריך המכירה עם DATE_TRUNC או MONTH(), מקבצים לפי חודש, ומחשבים סכום.",
+    simpleExplanation:
+      "לוקחים את כל המכירות, שואלים 'לאיזה חודש שייכת כל מכירה?', מקבצים לפי חודש, ומחשבים כמה נמכר בכל אחד.",
+    example:
+      "SELECT MONTH(sale_date) AS month, SUM(amount) FROM sales GROUP BY MONTH(sale_date) ORDER BY month;",
+    whatToMention: [
+      "חילוץ חודש מתאריך — MONTH() / DATE_TRUNC",
+      "GROUP BY לקיבוץ לפי חודש",
+      "SUM לסיכום הסכומים",
+      "ORDER BY להצגה כרונולוגית",
+    ],
+    commonMistakes: [
+      "לשכוח לקבץ לפי אותה פונקציה שבה מציגים",
+      "להשוות תאריכים עם = במקום BETWEEN",
+    ],
+    tags: ["sql", "group by", "date", "sum", "בינוני"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "sql-010",
+    category: "SQL",
+    topic: "ביצועים",
+    difficulty: "intermediate",
+    question: "מה יכול לגרום לשאילתה להיות איטית?",
+    shortAnswer:
+      "שאילתה איטית יכולה לנבוע מטבלה גדולה ללא אינדקס, שימוש ב-SELECT *, JOIN על עמודות לא ממופתחות, או סינון לא יעיל.",
+    simpleExplanation:
+      "SQL חייב לעבור על נתונים כדי למצוא מה שביקשת. בלי אינדקס, הוא עובר על כל שורה — כמו לחפש בספר בלי תוכן עניינים.",
+    example:
+      "SELECT * FROM orders WHERE YEAR(created_at) = 2024 — לא מנצל אינדקס; עדיף: WHERE created_at BETWEEN '2024-01-01' AND '2024-12-31'.",
+    whatToMention: [
+      "היעדר אינדקס על עמודות JOIN / WHERE",
+      "שימוש ב-SELECT * בטבלאות גדולות",
+      "N+1 queries",
+      "חישובים על עמודות ב-WHERE מונעים שימוש באינדקס",
+    ],
+    commonMistakes: [
+      "להוסיף אינדקס לכל עמודה — פוגע בביצועי כתיבה",
+      "לא לבדוק את ה-EXPLAIN לפני אופטימיזציה",
+    ],
+    tags: ["sql", "ביצועים", "index", "optimize", "בינוני"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+
+  // ─── Backend ────────────────────────────────────────────────────────────────
+  {
+    id: "be-001",
+    category: "Backend",
+    topic: "תפקיד השרת",
+    difficulty: "basic",
+    question: "מה תפקיד השרת במערכת?",
+    shortAnswer:
+      "השרת מקבל בקשות מהלקוח, מעבד אותן, שולח לבסיס הנתונים אם צריך, ומחזיר תשובה. הוא האמצע בין ה-UI לבין הנתונים.",
+    simpleExplanation:
+      "השרת הוא כמו מלצר במסעדה — הלקוח מזמין, המלצר מעביר למטבח (מסד נתונים), ומחזיר את האוכל (התשובה).",
+    example:
+      "הדפדפן שולח GET /users — השרת מושך מהDB ומחזיר JSON עם רשימת המשתמשים.",
+    whatToMention: [
+      "מקבל HTTP requests",
+      "מבצע לוגיקה עסקית",
+      "מתקשר עם מסד נתונים",
+      "מחזיר תשובה ללקוח",
+    ],
+    commonMistakes: [
+      "לשים לוגיקה עסקית בצד הלקוח",
+      "לבלבל בין שרת לבין מסד נתונים",
+    ],
+    tags: ["backend", "server", "client-server", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-002",
+    category: "Backend",
+    topic: "API ו-Database",
+    difficulty: "basic",
+    question: "מה ההבדל בין API לבין Database?",
+    shortAnswer:
+      "API הוא ממשק תקשורת שחושף פעולות. Database הוא מקום אחסון הנתונים. השרת קורא לAPI שלו עצמו או לשירותים חיצוניים, ושומר / שולף נתונים מה-DB.",
+    simpleExplanation:
+      "API הוא כמו תפריט המסעדה — מה ניתן לבקש. Database הוא המחסן שבו המצרכים שמורים.",
+    example:
+      "POST /api/users שולח נתונים לשרת (API). השרת שומר את זה ב-users table (Database).",
+    whatToMention: [
+      "API — ממשק לתקשורת",
+      "Database — אחסון נתונים",
+      "השרת הוא שמחבר ביניהם",
+    ],
+    commonMistakes: [
+      "לחשוב שAPI הוא בסיס נתונים",
+      "לגשת ישירות ל-DB מהצד של הלקוח",
+    ],
+    tags: ["backend", "api", "database", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-003",
+    category: "Backend",
+    topic: "זרימת בקשה",
+    difficulty: "basic",
+    question: "מה קורה כשמשתמש לוחץ על כפתור ששולח מידע לשרת?",
+    shortAnswer:
+      "הדפדפן שולח HTTP request עם הנתונים. השרת מקבל, מאמת, מעבד ושומר ב-DB, ואז מחזיר תשובה. הממשק מתעדכן לפי התשובה.",
+    simpleExplanation:
+      "זה כמו לשלוח מכתב — הדפדפן שולח בקשה, השרת פותח, מעבד, ושולח חזרה תשובה. הכל קורה תוך מילישניות.",
+    example:
+      "לחיצה על 'שמור' שולחת POST עם הנתונים. השרת בודק, שומר ב-DB, ומחזיר {success: true}.",
+    whatToMention: [
+      "HTTP request מהלקוח",
+      "אימות ועיבוד בשרת",
+      "שמירה ב-DB",
+      "HTTP response חזרה ללקוח",
+    ],
+    commonMistakes: [
+      "לשכוח לטפל בשגיאות בצד הלקוח",
+      "לחשוב שהפעולה מיידית — יש latency",
+    ],
+    tags: ["backend", "http", "request", "response", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-004",
+    category: "Backend",
+    topic: "חיבור ל-DB",
+    difficulty: "basic",
+    question: "למה שרת צריך להתחבר לבסיס נתונים?",
+    shortAnswer:
+      "כדי לשמור ולשלוף נתונים באופן קבוע. בלי DB, הנתונים נמחקים עם כל הפעלה מחדש של השרת.",
+    simpleExplanation:
+      "זיכרון השרת הוא זמני — כמו לוח מחיק. DB הוא קבוע — כמו פנקס. כל נתון שצריך לשרוד חייב להישמר ב-DB.",
+    example:
+      "משתמש נרשם → השרת שומר את הפרטים ב-users table ב-DB → בהתחברות הבאה שולף אותם משם.",
+    whatToMention: [
+      "אחסון קבוע לעומת זיכרון זמני",
+      "שאילתות לשליפה ועדכון",
+      "connection pool לניהול חיבורים",
+    ],
+    commonMistakes: [
+      "לשמור נתונים קריטיים בזיכרון השרת",
+      "לפתוח חיבור DB חדש לכל בקשה",
+    ],
+    tags: ["backend", "database", "connection", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-005",
+    category: "Backend",
+    topic: "אבטחה",
+    difficulty: "basic",
+    question: "מה זה Authentication?",
+    shortAnswer:
+      "Authentication היא אימות זהות — 'מי את?' השרת בודק שהמשתמש הוא מי שהוא טוען להיות, בדרך כלל עם שם משתמש וסיסמה.",
+    simpleExplanation:
+      "Authentication הוא כמו כניסה לבניין עם תעודת זהות — מוכיחים מי אנחנו. אחרי שמוכיחים, מקבלים token לשימוש עתידי.",
+    example:
+      "POST /login עם email + password → השרת בודק מה שב-DB → מחזיר JWT token אם הפרטים נכונים.",
+    whatToMention: [
+      "אימות זהות המשתמש",
+      "שימוש נפוץ: JWT, session cookies",
+      "הסיסמה מאוחסנת כ-hash, לא כטקסט",
+    ],
+    commonMistakes: [
+      "לשמור סיסמאות כטקסט רגיל",
+      "לבלבל בין Authentication ל-Authorization",
+    ],
+    tags: ["backend", "authentication", "security", "jwt"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-006",
+    category: "Backend",
+    topic: "אבטחה",
+    difficulty: "basic",
+    question: "מה זה Authorization?",
+    shortAnswer:
+      "Authorization היא הרשאה — 'מה מותר לך לעשות?' אחרי שהמשתמש זוהה, השרת בודק האם יש לו הרשאה לפעולה המבוקשת.",
+    simpleExplanation:
+      "Authentication הוא 'מי אתה', Authorization הוא 'מה מותר לך'. לדוגמה, כל משתמש יכול להיכנס, אבל רק admin יכול למחוק תוכן.",
+    example:
+      "משתמש מחובר מנסה למחוק משתמש אחר → השרת בודק תפקיד → מחזיר 403 Forbidden כי הוא לא admin.",
+    whatToMention: [
+      "הרשאה לפעולה לאחר אימות",
+      "תפקידים (roles): admin, user, editor",
+      "HTTP 403 Forbidden כשאין הרשאה",
+    ],
+    commonMistakes: [
+      "לסמוך רק על הצד הלקוח לבדיקת הרשאות",
+      "לבלבל 401 Unauthorized עם 403 Forbidden",
+    ],
+    tags: ["backend", "authorization", "security", "roles", "permissions"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-007",
+    category: "Backend",
+    topic: "אבטחה",
+    difficulty: "basic",
+    question: "למה צריך לבדוק קלט שמגיע מהמשתמש?",
+    shortAnswer:
+      "כדי למנוע מתקפות כמו SQL Injection ו-XSS. תמיד להניח שקלט ממשתמש עלול להיות זדוני.",
+    simpleExplanation:
+      "אם שדה שם מקבל כל טקסט, תוקף יכול לשים SQL בתוכו ולמחוק את כל הDB. Validation ו-sanitization מונעים את זה.",
+    example:
+      "שם משתמש שהוגש: 'Alice'; DROP TABLE users; — בלי validation זה יכול לקרוס את כל ה-DB.",
+    whatToMention: [
+      "SQL Injection — קלט זדוני בשאילתות",
+      "XSS — סקריפט זדוני בפלט HTML",
+      "validation — בדיקת פורמט וארוך",
+      "sanitization — ניקוי תווים מסוכנים",
+    ],
+    commonMistakes: [
+      "לסמוך רק על validation בצד הלקוח",
+      "לשרשר קלט משתמש ישירות לשאילתת SQL",
+    ],
+    tags: ["backend", "security", "validation", "sql injection", "xss"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-008",
+    category: "Backend",
+    topic: "טיפול בשגיאות",
+    difficulty: "basic",
+    question: "איך שרת צריך להגיב אם משהו נכשל?",
+    shortAnswer:
+      "להחזיר קוד HTTP מתאים (4xx לשגיאת לקוח, 5xx לשגיאת שרת) עם הודעה ברורה. לא לחשוף פרטים טכניים רגישים.",
+    simpleExplanation:
+      "כשמשהו נכשל, השרת לא אמור להתעלם ולא לקרוס שקט. הוא מחזיר קוד מתאים עם הסבר — כמו שלט 'לא נמצא' על דלת.",
+    example:
+      "משתמש לא נמצא → 404 Not Found עם { error: 'User not found' }. שגיאה בDB → 500 Internal Server Error.",
+    whatToMention: [
+      "4xx — שגיאה של הלקוח",
+      "5xx — שגיאה של השרת",
+      "הודעת שגיאה ברורה אך לא חושפת פרטים פנימיים",
+      "לוגים לניתוח שגיאות",
+    ],
+    commonMistakes: [
+      "להחזיר 200 OK עם שגיאה בתוך הגוף",
+      "לחשוף stack trace ללקוח",
+    ],
+    tags: ["backend", "error handling", "http status", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-009",
+    category: "Backend",
+    topic: "REST API",
+    difficulty: "basic",
+    question: "מה זה REST API?",
+    shortAnswer:
+      "REST הוא סגנון ארכיטקטורה לבניית API. משתמש ב-HTTP methods (GET, POST, PUT, DELETE) ובנתיבים (endpoints) להגדרת פעולות על משאבים.",
+    simpleExplanation:
+      "REST API הוא כמו שפה מוסכמת בין הדפדפן לשרת — GET שולף, POST יוצר, PUT מעדכן, DELETE מוחק. הכל דרך URL ברור.",
+    example:
+      "GET /users — רשימת משתמשים. POST /users — יצירת משתמש. DELETE /users/5 — מחיקת משתמש 5.",
+    whatToMention: [
+      "HTTP methods: GET, POST, PUT, DELETE",
+      "Stateless — כל בקשה עצמאית",
+      "JSON כפורמט נתונים נפוץ",
+      "Endpoints מייצגים משאבים",
+    ],
+    commonMistakes: [
+      "להשתמש ב-GET לפעולות שמשנות נתונים",
+      "לערבב שמות פעולות בURL כמו /getUser",
+    ],
+    tags: ["backend", "rest", "api", "http", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "be-010",
+    category: "Backend",
+    topic: "HTTP Status Codes",
+    difficulty: "basic",
+    question: "מה ההבדל בין 200, 400 ו-500?",
+    shortAnswer:
+      "200 — הצלחה. 400 — שגיאה של הלקוח (בקשה לא תקינה). 500 — שגיאה בשרת.",
+    simpleExplanation:
+      "קודי HTTP הם כמו תגובות במסעדה: 200 'הנה ההזמנה שלך', 400 'הזמנת משהו שלא קיים בתפריט', 500 'המטבח נשרף'.",
+    example:
+      "POST /login עם מייל לא תקין → 400. שגיאה בDB → 500. התחברות הצליחה → 200 עם token.",
+    whatToMention: [
+      "2xx — הצלחה",
+      "4xx — שגיאת לקוח (404 not found, 401 unauthorized, 403 forbidden)",
+      "5xx — שגיאת שרת",
+      "301 / 302 — redirect",
+    ],
+    commonMistakes: [
+      "להחזיר 200 עם שגיאה בתוכן",
+      "לבלבל 401 (לא מזוהה) עם 403 (אין הרשאה)",
+    ],
+    tags: ["backend", "http", "status codes", "בסיסי"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+
+  // ─── Technical Thinking ─────────────────────────────────────────────────────
+  {
+    id: "tt-001",
+    category: "Technical Thinking",
+    topic: "פירוק בעיה",
+    difficulty: "basic",
+    question: "איך היית מפרקת בעיה גדולה לשלבים קטנים?",
+    shortAnswer:
+      "מתחילים להבין מה הפלט הרצוי, אחר כך שוברים את הדרך לשם לצעדים קטנים שניתן לבצע ולבדוק אחד אחד.",
+    simpleExplanation:
+      "כמו לבנות פאזל — לא מנסים לפתור הכל בבת אחת. קודם מסדרים את המסגרת, אחר כך ממלאים פנימה.",
+    example:
+      "'בנה דף הרשמה' → פרוק: 1. HTML form. 2. validation. 3. שליחה לשרת. 4. טיפול בתשובה. 5. הצגת הודעת הצלחה.",
+    whatToMention: [
+      "להבין את המטרה לפני שמתחילים",
+      "לפרק לצעדים ניתנים לבדיקה",
+      "לפתור ולאמת כל שלב לפני הבא",
+    ],
+    commonMistakes: [
+      "להתחיל לכתוב קוד לפני שמבינים את הבעיה",
+      "לנסות לפתור הכל בו-זמנית",
+    ],
+    tags: ["חשיבה", "problem solving", "פירוק", "תכנון"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-002",
+    category: "Technical Thinking",
+    topic: "Debugging",
+    difficulty: "basic",
+    question: "איך תחליטי מה לבדוק קודם כשמשהו לא עובד?",
+    shortAnswer:
+      "מתחילים מהסיבות הכי סבירות — האם הנתונים מגיעים? האם ה-network request עבר? מצמצמים בהדרגה עד שמוצאים את נקודת הכשל.",
+    simpleExplanation:
+      "Debugging הוא כמו לחפש חשמל שנכבה — בודקים קודם את האביזר, אחר כך השקע, אחר כך המפסק. עוברים מהסבירות הגבוהה לנמוכה.",
+    example:
+      "כפתור לא שומר: 1. בדיקת console.log שהנתונים קיימים. 2. בדיקת Network tab שה-request יצא. 3. בדיקת שגיאת שרת.",
+    whatToMention: [
+      "להתחיל מהכי סביר",
+      "לבדוק שלב אחד בכל פעם",
+      "להשתמש ב-console.log / breakpoints",
+      "לקרוא הודעות שגיאה לפני לנחש",
+    ],
+    commonMistakes: [
+      "לשנות כמה דברים בו זמנית ולא לדעת מה עזר",
+      "להתעלם מהודעות שגיאה",
+    ],
+    tags: ["debugging", "חשיבה", "problem solving"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-003",
+    category: "Technical Thinking",
+    topic: "אימות פתרון",
+    difficulty: "basic",
+    question: "איך תוודאי שהפתרון שלך באמת עובד?",
+    shortAnswer:
+      "בודקים את ה-happy path, אחר כך קלט לא תקין, מקרי קצה, ובאגים שהיו בעבר. לא מסתמכים רק על 'נראה טוב'.",
+    simpleExplanation:
+      "לבדוק פתרון זה לא רק 'האם עובד עם קלט רגיל?' — גם 'מה קורה אם הקלט ריק? שגוי? קצה?'",
+    example:
+      "טופס הרשמה: בדיקת הרשמה רגילה, הרשמה עם מייל כפול, הרשמה בלי שם, ובהתחברות מחדש אחר כך.",
+    whatToMention: [
+      "Happy path",
+      "קלט לא תקין ומקרי קצה",
+      "regression — לוודא שלא שברנו משהו אחר",
+      "אחרים מבינים ומשתמשים בזה?",
+    ],
+    commonMistakes: [
+      "לבדוק רק את הנתיב המוצלח",
+      "להכריז שהפיצ'ר 'מוכן' לפני בדיקה ידנית",
+    ],
+    tags: ["testing", "validation", "קצה", "חשיבה"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-004",
+    category: "Technical Thinking",
+    topic: "למידה עצמאית",
+    difficulty: "basic",
+    question: "איך תתמודדי עם משימה בטכנולוגיה שלא עבדת איתה?",
+    shortAnswer:
+      "מתחילים בתיעוד הרשמי ודוגמאות קצרות. בונים proof of concept פשוט לפני שנוגעים בקוד הראשי. שואלים כשתקועים.",
+    simpleExplanation:
+      "כמו לנהוג ברכב חדש — לא עוזב את חניה בלי להבין את הבסיס. קוראים, מנסים קטן, ואז בונים.",
+    example:
+      "צריך לעבוד עם Redis לראשונה → קוראים את quick start, בונים hello world, מנסים פקודה פשוטה, ורק אז מכניסים לפרויקט.",
+    whatToMention: [
+      "תיעוד רשמי כנקודת התחלה",
+      "proof of concept מינימלי לפני אינטגרציה",
+      "לא להתבייש לשאול",
+      "לפרק לחתיכות קטנות",
+    ],
+    commonMistakes: [
+      "לצלול לקוד ייצור בלי הבנה בסיסית",
+      "להסתמך רק על Stack Overflow בלי להבין את הפתרון",
+    ],
+    tags: ["למידה", "עצמאות", "חשיבה", "טכנולוגיה חדשה"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-005",
+    category: "Technical Thinking",
+    topic: "תקשורת",
+    difficulty: "basic",
+    question: "איך תסבירי משהו טכני לאדם לא טכני?",
+    shortAnswer:
+      "משתמשים באנלוגיות מהחיים, נמנעים מז'רגון, ומתמקדים בתוצאה ולא בפרטים הטכניים.",
+    simpleExplanation:
+      "מדברים על 'מה זה עושה עבורך' ולא 'איך זה עובד מבפנים'. אנלוגיה טובה שווה אלף מילים טכניות.",
+    example:
+      "API: 'דמיין שאת בשאלה בסגנון. האדם השואל הוא הלקוח, המלצר הוא ה-API, והמטבח הוא המערכת.'",
+    whatToMention: [
+      "אנלוגיות מהחיים",
+      "להימנע מז'רגון",
+      "להתמקד ב-'מה זה עושה' ולא 'איך'",
+      "לשאול האם הסבר הובן",
+    ],
+    commonMistakes: [
+      "להניח שכולם יודעים את המינוחים הטכניים",
+      "להסביר יותר מדי — לאבד את הקהל",
+    ],
+    tags: ["תקשורת", "חשיבה", "הסבר", "soft skills"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-006",
+    category: "Technical Thinking",
+    topic: "עדיפויות",
+    difficulty: "basic",
+    question: "אם יש לך כמה באגים, איך תחליטי במה לטפל קודם?",
+    shortAnswer:
+      "לפי חומרה והשפעה — באג שמונע שימוש בפיצ'ר קריטי קודם לפני באג אסתטי. שואלים מה פוגע הכי הרבה במשתמש.",
+    simpleExplanation:
+      "כמו רופא מיון — לא מטפלים לפי סדר הגעה אלא לפי חומרה. קודם מה שמסוכן, אחר כך מה שמציק.",
+    example:
+      "באג שמונע כניסה למערכת — דחוף. באג שמציג תאריך בפורמט שגוי — פחות דחוף.",
+    whatToMention: [
+      "חומרה — כמה פוגע במשתמש",
+      "תדירות — כמה משתמשים נפגעים",
+      "מורכבות התיקון",
+      "תלויות — האם חוסם דברים אחרים",
+    ],
+    commonMistakes: [
+      "לתקן מה שקל קודם במקום מה שחשוב",
+      "לא לתקשר עדיפויות עם הצוות",
+    ],
+    tags: ["עדיפויות", "bugs", "חשיבה", "prioritization"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-007",
+    category: "Technical Thinking",
+    topic: "שיפור",
+    difficulty: "intermediate",
+    question: "איך היית משפרת פיצ׳ר שכבר עובד?",
+    shortAnswer:
+      "קודם מבינים איפה הכאב — האם זה ביצועים, קריאות הקוד, UX, או כיסוי edge cases. אחר כך מטפלים בנקודה הכי בעייתית.",
+    simpleExplanation:
+      "לשפר פיצ'ר שעובד זה כמו לשפץ דירה — לא פורקים הכל, מזהים מה מציק הכי הרבה ומתחילים משם.",
+    example:
+      "חיפוש שעובד אבל איטי → מוסיפים debounce, מאנדקסים את הDB, ואז בודקים שוב עם נתונים גדולים.",
+    whatToMention: [
+      "להבין מהו הבעיה לפני שמשנים",
+      "לשנות ולמדוד — לא לנחש",
+      "לא לשבור מה שעובד",
+      "regression testing אחרי שינוי",
+    ],
+    commonMistakes: [
+      "לשפר בלי מדידה — לא יודעים אם עזר",
+      "לרפקטור הכל בבת אחת",
+    ],
+    tags: ["שיפור", "refactor", "ביצועים", "חשיבה"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
+  {
+    id: "tt-008",
+    category: "Technical Thinking",
+    topic: "חקירת נתונים",
+    difficulty: "intermediate",
+    question: "אם מספר בדשבורד נראה לא הגיוני, איך תבדקי את זה?",
+    shortAnswer:
+      "קודם מאמתים את המקור — מאיפה המספר מגיע? בודקים את ה-query, את הפילטרים, ואת הנתונים הגולמיים מול הצפוי.",
+    simpleExplanation:
+      "לא מאמינים לדשבורד עיוור — חוזרים למקור. כמו לבדוק חשבון בנק — לא מסתמכים על הכותרת, בודקים את הפירוט.",
+    example:
+      "מכירות חודשיות נראות 0 → בודקים: האם הפילטר נכון? האם ה-query נכון? האם יש נתונים ב-DB בכלל?",
+    whatToMention: [
+      "לאתר את מקור הנתון",
+      "לבדוק את ה-query / הלוגיקה",
+      "לבדוק פילטרים ופרמטרים",
+      "להשוות מול נתון ידוע",
+    ],
+    commonMistakes: [
+      "לדווח על בעיה לפני בדיקה עצמית",
+      "להניח שהקוד נכון ולחפש בנתונים בלבד",
+    ],
+    tags: ["נתונים", "debugging", "חשיבה", "data analysis"],
+    source: "demo",
+    createdAt: "2026-07-01",
+    updatedAt: "2026-07-01",
+  },
 ];
