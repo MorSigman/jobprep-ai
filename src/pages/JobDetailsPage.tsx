@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { JobApplication } from "../types/job";
 import type { UserProfile } from "../types/profile";
+import type { ProfessionalQuestion } from "../types/professionalQuestion";
+import type { PageName } from "../types/navigation";
 import AddJobForm from "../components/AddJobForm";
 import {
   generateCvTailoringSuggestions,
   isProfileEmpty,
   type CvTailoringSuggestions,
 } from "../lib/cvTailoring";
+import { demoProfessionalQuestions } from "../data/professionalQuestions";
+import { getRecommendedQuestionsForJob } from "../lib/recommendedQuestions";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -155,11 +159,71 @@ function PrepSection({ id, title, helper, value, onSave }: PrepSectionProps) {
   );
 }
 
+const DIFFICULTY_LABELS: Record<string, string> = {
+  basic: "בסיסי",
+  intermediate: "בינוני",
+};
+
+type RQCardProps = { q: ProfessionalQuestion };
+function RecommendedQuestionCard({ q }: RQCardProps) {
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [showExample, setShowExample] = useState(false);
+
+  return (
+    <div className="recommended-question-card">
+      <div className="recommended-question-meta">
+        <span className="chip chip--category">{q.category}</span>
+        <span className="chip chip--topic chip--sm">{q.topic}</span>
+        <span className={`chip chip--difficulty-${q.difficulty} chip--sm`}>
+          {DIFFICULTY_LABELS[q.difficulty] ?? q.difficulty}
+        </span>
+      </div>
+      <p className="pq-card__question">{q.question}</p>
+      <div className="recommended-question-answer">
+        <p>{q.shortAnswer}</p>
+      </div>
+      <div className="recommended-question-actions">
+        <button
+          type="button"
+          className="pq-expandable__btn"
+          aria-expanded={showExplanation}
+          onClick={() => setShowExplanation((v) => !v)}
+        >
+          {showExplanation ? "- הסבר פשוט" : "+ הסבר פשוט"}
+        </button>
+        {q.example && (
+          <button
+            type="button"
+            className="pq-expandable__btn"
+            aria-expanded={showExample}
+            onClick={() => setShowExample((v) => !v)}
+          >
+            {showExample ? "- דוגמה" : "+ דוגמה"}
+          </button>
+        )}
+      </div>
+      {showExplanation && q.simpleExplanation && (
+        <div className="recommended-question-expanded">
+          <strong>הסבר פשוט:</strong>
+          <p>{q.simpleExplanation}</p>
+        </div>
+      )}
+      {showExample && q.example && (
+        <div className="recommended-question-expanded">
+          <strong>דוגמה:</strong>
+          <p>{q.example}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Props = {
   job: JobApplication;
   onBack: () => void;
   onUpdate: (job: JobApplication) => void;
   onDelete: (id: string) => void;
+  onNavigate?: (page: PageName) => void;
   profile?: UserProfile;
 };
 
@@ -258,10 +322,15 @@ function CvTailoringResults({ suggestions }: { suggestions: CvTailoringSuggestio
   );
 }
 
-function JobDetailsPage({ job, onBack, onUpdate, onDelete, profile }: Props) {
+function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [suggestions, setSuggestions] = useState<CvTailoringSuggestions | null>(null);
+
+  const recommendedQuestions = useMemo(
+    () => getRecommendedQuestionsForJob(job, demoProfessionalQuestions),
+    [job]
+  );
 
   useEffect(() => {
     setSuggestions(null);
@@ -469,6 +538,38 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, profile }: Props) {
           הבדיקה מתבצעת מקומית בלבד לפי הפרופיל ותיאור המשרה השמורים בדפדפן.
           המידע אינו נשלח לשרת חיצוני.
         </p>
+      </div>
+
+      <div className="recommended-questions-section">
+        <div className="recommended-questions-header">
+          <h3 className="prep-workspace__title">שאלות מקצועיות מומלצות למשרה הזו</h3>
+          <p className="prep-section__helper">
+            נבחרו מתוך מאגר השאלות המקומי לפי תחום המשרה, תיאור המשרה ומילות מפתח.
+          </p>
+          <div className="recommended-questions-topbar">
+            <span className="pq-count-text">נמצאו {recommendedQuestions.length} שאלות</span>
+            {onNavigate && (
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => onNavigate("professional-interview")}
+              >
+                לכל מאגר השאלות המקצועיות
+              </button>
+            )}
+          </div>
+        </div>
+        {recommendedQuestions.length === 0 ? (
+          <p className="recommended-question-empty">
+            לא נמצאו שאלות מתאימות למשרה הזו. אפשר להיכנס למאגר השאלות המקצועיות ולחפש ידנית.
+          </p>
+        ) : (
+          <div className="recommended-questions-grid">
+            {recommendedQuestions.map((q) => (
+              <RecommendedQuestionCard key={q.id} q={q} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="prep-workspace">

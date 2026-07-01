@@ -88,6 +88,7 @@ function App() {
             onBack={() => setActivePage("jobs")}
             onUpdate={handleUpdateJob}
             onDelete={handleDeleteJob}
+            onNavigate={handleNavigate}
             profile={profile}
           />
         ) : (
