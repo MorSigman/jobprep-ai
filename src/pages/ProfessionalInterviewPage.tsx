@@ -9,6 +9,10 @@ import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
 import { usePracticeProgress } from "../hooks/usePracticeProgress";
 import type { ProgressMap } from "../hooks/usePracticeProgress";
 import { analyzeJobDescription, type AnalysisResult } from "../lib/jobDescriptionAnalyzer";
+import {
+  CATEGORY_LABELS,
+  DIFFICULTY_LABELS,
+} from "../lib/questionLabels";
 
 type ViewMode = "cards" | "compact" | "table";
 
@@ -30,31 +34,6 @@ const ALL_CATEGORIES: QuestionCategory[] = [
   "Deep Learning",
   "AI",
 ];
-
-const CATEGORY_LABELS: Record<QuestionCategory, string> = {
-  General: "כללי טכני",
-  "Data Analyst": "Data Analyst",
-  SQL: "SQL",
-  QA: "QA",
-  Frontend: "Frontend",
-  Backend: "Backend",
-  JavaScript: "JavaScript",
-  Cyber: "סייבר",
-  Git: "Git",
-  Projects: "פרויקטים",
-  "Technical Thinking": "חשיבה טכנית",
-  Protocols: "פרוטוקולים ותקשורת",
-  Architecture: "ארכיטקטורה",
-  "Machine Learning": "למידת מכונה",
-  "Deep Learning": "למידה עמוקה",
-  AI: "בינה מלאכותית",
-};
-
-const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
-  basic: "בסיסי",
-  intermediate: "בינוני",
-  advanced: "מתקדם",
-};
 
 // ─── Full Card ─────────────────────────────────────────────────────────────
 

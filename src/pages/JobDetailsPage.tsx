@@ -12,6 +12,7 @@ import {
 import { demoProfessionalQuestions } from "../data/professionalQuestions";
 import { getRecommendedQuestionsForJob } from "../lib/recommendedQuestions";
 import { usePracticeProgress, type ProgressMap } from "../hooks/usePracticeProgress";
+import { CATEGORY_LABELS, DIFFICULTY_LABELS } from "../lib/questionLabels";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -160,10 +161,6 @@ function PrepSection({ id, title, helper, value, onSave }: PrepSectionProps) {
   );
 }
 
-const DIFFICULTY_LABELS: Record<string, string> = {
-  basic: "בסיסי",
-  intermediate: "בינוני",
-};
 
 type RQCardProps = { q: ProfessionalQuestion };
 function RecommendedQuestionCard({ q }: RQCardProps) {
@@ -173,10 +170,10 @@ function RecommendedQuestionCard({ q }: RQCardProps) {
   return (
     <div className="recommended-question-card">
       <div className="recommended-question-meta">
-        <span className="chip chip--category">{q.category}</span>
+        <span className="chip chip--category">{CATEGORY_LABELS[q.category]}</span>
         <span className="chip chip--topic chip--sm">{q.topic}</span>
-        <span className={`chip chip--difficulty-${q.difficulty} chip--sm`}>
-          {DIFFICULTY_LABELS[q.difficulty] ?? q.difficulty}
+        <span className={`chip chip--difficulty chip--difficulty-${q.difficulty} chip--sm`}>
+          {DIFFICULTY_LABELS[q.difficulty]}
         </span>
       </div>
       <p className="pq-card__question">{q.question}</p>
@@ -294,10 +291,10 @@ function JobPracticePanel({ questions, progress, onRecordResult, onExit }: JobPr
       <div className="job-practice-card">
         <p className="job-practice-progress">שאלה {safeIndex + 1} מתוך {questions.length}</p>
         <div className="recommended-question-meta">
-          <span className="chip chip--category">{current.category}</span>
+          <span className="chip chip--category">{CATEGORY_LABELS[current.category]}</span>
           <span className="chip chip--topic chip--sm">{current.topic}</span>
-          <span className={`chip chip--difficulty-${current.difficulty} chip--sm`}>
-            {DIFFICULTY_LABELS[current.difficulty] ?? current.difficulty}
+          <span className={`chip chip--difficulty chip--difficulty-${current.difficulty} chip--sm`}>
+            {DIFFICULTY_LABELS[current.difficulty]}
           </span>
         </div>
         {qProgress && qProgress.timesPracticed > 0 && (
