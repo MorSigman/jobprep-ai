@@ -11,6 +11,7 @@ import {
 } from "../lib/cvTailoring";
 import { demoProfessionalQuestions } from "../data/professionalQuestions";
 import { getRecommendedQuestionsForJob } from "../lib/recommendedQuestions";
+import { usePracticeProgress, type ProgressMap } from "../hooks/usePracticeProgress";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -189,7 +190,7 @@ function RecommendedQuestionCard({ q }: RQCardProps) {
           aria-expanded={showExplanation}
           onClick={() => setShowExplanation((v) => !v)}
         >
-          {showExplanation ? "- הסבר פשוט" : "+ הסבר פשוט"}
+          {showExplanation ? "- הרחבה" : "+ הרחבה"}
         </button>
         {q.example && (
           <button
@@ -204,8 +205,8 @@ function RecommendedQuestionCard({ q }: RQCardProps) {
       </div>
       {showExplanation && q.simpleExplanation && (
         <div className="recommended-question-expanded">
-          <strong>הסבר פשוט:</strong>
-          <p>{q.simpleExplanation}</p>
+          <strong>הרחבה:</strong>
+          <p className="pq-expandable__text">{q.simpleExplanation}</p>
         </div>
       )}
       {showExample && q.example && (
@@ -214,6 +215,182 @@ function RecommendedQuestionCard({ q }: RQCardProps) {
           <p>{q.example}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+type JobPracticePanelProps = {
+  questions: ProfessionalQuestion[];
+  progress: ProgressMap;
+  onRecordResult: (questionId: string, result: "known" | "review") => void;
+  onExit: () => void;
+};
+
+function JobPracticePanel({ questions, progress, onRecordResult, onExit }: JobPracticePanelProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  const safeIndex = Math.min(currentIndex, Math.max(0, questions.length - 1));
+  const current = questions[safeIndex];
+
+  const stats = useMemo(() => {
+    const practiced = questions.filter((q) => (progress[q.id]?.timesPracticed ?? 0) > 0).length;
+    const known = questions.reduce((sum, q) => sum + (progress[q.id]?.timesKnown ?? 0), 0);
+    const review = questions.reduce((sum, q) => sum + (progress[q.id]?.timesNeedsReview ?? 0), 0);
+    return { practiced, known, review };
+  }, [questions, progress]);
+
+  function handleResult(result: "known" | "review") {
+    if (!current) return;
+    onRecordResult(current.id, result);
+    setShowAnswer(false);
+    if (safeIndex < questions.length - 1) {
+      setCurrentIndex(safeIndex + 1);
+    }
+  }
+
+  function goTo(index: number) {
+    setCurrentIndex(index);
+    setShowAnswer(false);
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="job-practice-panel">
+        <div className="job-practice-header">
+          <div className="job-practice-header__top">
+            <h4 className="job-practice-title">תרגול ראיון למשרה הזו</h4>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onExit}>
+              סיום תרגול
+            </button>
+          </div>
+        </div>
+        <p className="job-practice-empty">לא נמצאו שאלות מתאימות לתרגול עבור המשרה הזו.</p>
+      </div>
+    );
+  }
+
+  const qProgress = current ? progress[current.id] : undefined;
+
+  return (
+    <div className="job-practice-panel">
+      <div className="job-practice-header">
+        <div className="job-practice-header__top">
+          <h4 className="job-practice-title">תרגול ראיון למשרה הזו</h4>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={onExit}>
+            סיום תרגול
+          </button>
+        </div>
+        <p className="prep-section__helper" style={{ margin: "4px 0 8px" }}>
+          השאלות נבחרו מתוך המאגר המקומי לפי תחום המשרה ותיאור המשרה.
+        </p>
+        <div className="job-practice-stats">
+          <span>תורגלו: {stats.practiced}</span>
+          <span>ידעתי: {stats.known}</span>
+          <span>צריך חזרה: {stats.review}</span>
+        </div>
+      </div>
+
+      <div className="job-practice-card">
+        <p className="job-practice-progress">שאלה {safeIndex + 1} מתוך {questions.length}</p>
+        <div className="recommended-question-meta">
+          <span className="chip chip--category">{current.category}</span>
+          <span className="chip chip--topic chip--sm">{current.topic}</span>
+          <span className={`chip chip--difficulty-${current.difficulty} chip--sm`}>
+            {DIFFICULTY_LABELS[current.difficulty] ?? current.difficulty}
+          </span>
+        </div>
+        {qProgress && qProgress.timesPracticed > 0 && (
+          <p className="job-practice-past-hint">
+            תורגל {qProgress.timesPracticed} פעמים · פעם אחרונה: {qProgress.lastPracticedAt}
+          </p>
+        )}
+        <p className="job-practice-question">{current.question}</p>
+        <button
+          type="button"
+          className="btn btn--secondary btn--sm"
+          aria-expanded={showAnswer}
+          onClick={() => setShowAnswer((v) => !v)}
+        >
+          {showAnswer ? "הסתר תשובה" : "הצג תשובה"}
+        </button>
+        {showAnswer && (
+          <div className="job-practice-answer">
+            {current.shortAnswer && (
+              <div className="job-practice-answer-section">
+                <strong>תשובה קצרה:</strong>
+                <p>{current.shortAnswer}</p>
+              </div>
+            )}
+            {current.simpleExplanation && (
+              <div className="job-practice-answer-section">
+                <strong>הרחבה:</strong>
+                <p className="pq-expandable__text">{current.simpleExplanation}</p>
+              </div>
+            )}
+            {current.example && (
+              <div className="job-practice-answer-section">
+                <strong>דוגמה:</strong>
+                <p>{current.example}</p>
+              </div>
+            )}
+            {current.whatToMention.length > 0 && (
+              <div className="job-practice-answer-section">
+                <strong>מה כדאי להזכיר:</strong>
+                <ul className="job-practice-list">
+                  {current.whatToMention.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {current.commonMistakes.length > 0 && (
+              <div className="job-practice-answer-section">
+                <strong>טעויות נפוצות:</strong>
+                <ul className="job-practice-list">
+                  {current.commonMistakes.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="job-practice-actions">
+              <button
+                type="button"
+                className="job-practice-result-button job-practice-result-button--known"
+                onClick={() => handleResult("known")}
+              >
+                ידעתי ✓
+              </button>
+              <button
+                type="button"
+                className="job-practice-result-button job-practice-result-button--review"
+                onClick={() => handleResult("review")}
+              >
+                צריך חזרה ↺
+              </button>
+            </div>
+          </div>
+        )}
+        <div className="job-practice-nav">
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={safeIndex === 0}
+            onClick={() => goTo(safeIndex - 1)}
+          >
+            שאלה קודמת
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={safeIndex === questions.length - 1}
+            onClick={() => goTo(safeIndex + 1)}
+          >
+            שאלה הבאה
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -326,6 +503,8 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [suggestions, setSuggestions] = useState<CvTailoringSuggestions | null>(null);
+  const [jobPracticeMode, setJobPracticeMode] = useState(false);
+  const { progress, recordResult } = usePracticeProgress();
 
   const recommendedQuestions = useMemo(
     () => getRecommendedQuestionsForJob(job, demoProfessionalQuestions),
@@ -541,25 +720,45 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
       </div>
 
       <div className="recommended-questions-section">
-        <div className="recommended-questions-header">
-          <h3 className="prep-workspace__title">שאלות מקצועיות מומלצות למשרה הזו</h3>
-          <p className="prep-section__helper">
-            נבחרו מתוך מאגר השאלות המקומי לפי תחום המשרה, תיאור המשרה ומילות מפתח.
-          </p>
-          <div className="recommended-questions-topbar">
-            <span className="pq-count-text">נמצאו {recommendedQuestions.length} שאלות</span>
-            {onNavigate && (
-              <button
-                type="button"
-                className="btn btn--secondary btn--sm"
-                onClick={() => onNavigate("professional-interview")}
-              >
-                לכל מאגר השאלות המקצועיות
-              </button>
-            )}
+        {!jobPracticeMode && (
+          <div className="recommended-questions-header">
+            <h3 className="prep-workspace__title">שאלות מקצועיות מומלצות למשרה הזו</h3>
+            <p className="prep-section__helper">
+              נבחרו מתוך מאגר השאלות המקומי לפי תחום המשרה, תיאור המשרה ומילות מפתח.
+            </p>
+            <div className="recommended-questions-topbar">
+              <span className="pq-count-text">נמצאו {recommendedQuestions.length} שאלות</span>
+              <div className="btn-row">
+                {recommendedQuestions.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    onClick={() => setJobPracticeMode(true)}
+                  >
+                    תרגול ראיון למשרה הזו
+                  </button>
+                )}
+                {onNavigate && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={() => onNavigate("professional-interview")}
+                  >
+                    לכל מאגר השאלות המקצועיות
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-        {recommendedQuestions.length === 0 ? (
+        )}
+        {jobPracticeMode ? (
+          <JobPracticePanel
+            questions={recommendedQuestions}
+            progress={progress}
+            onRecordResult={recordResult}
+            onExit={() => setJobPracticeMode(false)}
+          />
+        ) : recommendedQuestions.length === 0 ? (
           <p className="recommended-question-empty">
             לא נמצאו שאלות מתאימות למשרה הזו. אפשר להיכנס למאגר השאלות המקצועיות ולחפש ידנית.
           </p>

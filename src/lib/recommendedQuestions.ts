@@ -27,6 +27,26 @@ const RULES: CategoryRule[] = [
     keywords: ["cyber", "security", "soc", "logs", "phishing", "vulnerability", "incident"],
     categories: ["Cyber", "Technical Thinking", "Projects"],
   },
+  {
+    keywords: ["protocol", "http", "https", "network", "dns", "tcp", "udp", "תקשורת", "רשתות"],
+    categories: ["Protocols", "Backend", "Technical Thinking"],
+  },
+  {
+    keywords: ["architecture", "system design", "scalable", "microservices", "distributed", "ארכיטקטורה"],
+    categories: ["Architecture", "Backend", "Technical Thinking", "Projects"],
+  },
+  {
+    keywords: ["machine learning", "ml", "model", "prediction", "data science", "למידת מכונה"],
+    categories: ["Machine Learning", "Data Analyst", "AI", "Projects"],
+  },
+  {
+    keywords: ["deep learning", "neural network", "computer vision", "nlp", "transformer", "למידה עמוקה"],
+    categories: ["Deep Learning", "Machine Learning", "AI", "Projects"],
+  },
+  {
+    keywords: ["ai", "generative ai", "llm", "prompt", "rag", "chatbot", "בינה מלאכותית"],
+    categories: ["AI", "Machine Learning", "Projects", "Technical Thinking"],
+  },
 ];
 
 const ALWAYS_INCLUDE: QuestionCategory[] = ["Projects", "Technical Thinking"];

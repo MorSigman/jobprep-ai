@@ -9,10 +9,15 @@ export type QuestionCategory =
   | "Cyber"
   | "Git"
   | "Projects"
-  | "Technical Thinking";
+  | "Technical Thinking"
+  | "Protocols"
+  | "Architecture"
+  | "Machine Learning"
+  | "Deep Learning"
+  | "AI";
 
-export type QuestionDifficulty = "basic" | "intermediate";
-export type QuestionSource = "demo" | "user";
+export type QuestionDifficulty = "basic" | "intermediate" | "advanced";
+export type QuestionSource = "demo" | "user" | "job-description";
 
 export type ProfessionalQuestion = {
   id: string;

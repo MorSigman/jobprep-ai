@@ -3,10 +3,12 @@ import type {
   ProfessionalQuestion,
   QuestionCategory,
   QuestionDifficulty,
+  QuestionSource,
 } from "../types/professionalQuestion";
 import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
 import { usePracticeProgress } from "../hooks/usePracticeProgress";
 import type { ProgressMap } from "../hooks/usePracticeProgress";
+import { analyzeJobDescription, type AnalysisResult } from "../lib/jobDescriptionAnalyzer";
 
 type ViewMode = "cards" | "compact" | "table";
 
@@ -22,10 +24,15 @@ const ALL_CATEGORIES: QuestionCategory[] = [
   "Git",
   "Projects",
   "Technical Thinking",
+  "Protocols",
+  "Architecture",
+  "Machine Learning",
+  "Deep Learning",
+  "AI",
 ];
 
 const CATEGORY_LABELS: Record<QuestionCategory, string> = {
-  General: "כללי",
+  General: "כללי טכני",
   "Data Analyst": "Data Analyst",
   SQL: "SQL",
   QA: "QA",
@@ -36,11 +43,17 @@ const CATEGORY_LABELS: Record<QuestionCategory, string> = {
   Git: "Git",
   Projects: "פרויקטים",
   "Technical Thinking": "חשיבה טכנית",
+  Protocols: "פרוטוקולים ותקשורת",
+  Architecture: "ארכיטקטורה",
+  "Machine Learning": "למידת מכונה",
+  "Deep Learning": "למידה עמוקה",
+  AI: "בינה מלאכותית",
 };
 
 const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
   basic: "בסיסי",
   intermediate: "בינוני",
+  advanced: "מתקדם",
 };
 
 // ─── Full Card ─────────────────────────────────────────────────────────────
@@ -53,10 +66,10 @@ type CardProps = {
 function QuestionCard({ q, onDelete }: CardProps) {
   const [showExplanation, setShowExplanation] = useState(false);
   const [showExample, setShowExample] = useState(false);
-  const [showFull, setShowFull] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className={`pq-card${q.source === "user" ? " pq-card--user" : ""}`}>
+    <div className={`pq-card${q.source === "user" || q.source === "job-description" ? " pq-card--user" : ""}`}>
       <div className="pq-card__header">
         <div className="pq-card__meta">
           <span className="chip chip--category">{CATEGORY_LABELS[q.category]}</span>
@@ -64,8 +77,9 @@ function QuestionCard({ q, onDelete }: CardProps) {
             {DIFFICULTY_LABELS[q.difficulty]}
           </span>
           {q.source === "user" && <span className="chip chip--user">שאלה שלי</span>}
+          {q.source === "job-description" && <span className="chip chip--job-desc">נוצר מתיאור משרה</span>}
         </div>
-        {onDelete && q.source === "user" && (
+        {onDelete && (q.source === "user" || q.source === "job-description") && (
           <button
             type="button"
             className="pq-card__delete"
@@ -81,36 +95,6 @@ function QuestionCard({ q, onDelete }: CardProps) {
       <h3 className="pq-card__question">{q.question}</h3>
       <p className="pq-card__answer">{q.shortAnswer}</p>
 
-      {q.whatToMention.length > 0 && (
-        <div className="pq-section">
-          <p className="pq-expandable__label">מה כדאי להזכיר</p>
-          <ul className="pq-expandable__list">
-            {q.whatToMention.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {q.commonMistakes.length > 0 && (
-        <div className="pq-section">
-          <p className="pq-expandable__label">טעויות נפוצות</p>
-          <ul className="pq-expandable__list pq-expandable__list--warn">
-            {q.commonMistakes.map((m, i) => (
-              <li key={i}>{m}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {q.tags.length > 0 && (
-        <div className="chip-row" style={{ marginTop: "8px" }}>
-          {q.tags.map((tag) => (
-            <span key={tag} className="chip chip--tag">{tag}</span>
-          ))}
-        </div>
-      )}
-
       <div className="pq-card__toggles">
         <button
           type="button"
@@ -118,7 +102,7 @@ function QuestionCard({ q, onDelete }: CardProps) {
           aria-expanded={showExplanation}
           onClick={() => setShowExplanation((v) => !v)}
         >
-          {showExplanation ? "− הסבר פשוט" : "+ הסבר פשוט"}
+          {showExplanation ? "− הרחבה" : "+ הרחבה"}
         </button>
         <button
           type="button"
@@ -128,31 +112,33 @@ function QuestionCard({ q, onDelete }: CardProps) {
         >
           {showExample ? "− דוגמה" : "+ דוגמה"}
         </button>
-        <button
-          type="button"
-          className="pq-toggle-btn"
-          aria-expanded={showFull}
-          onClick={() => setShowFull((v) => !v)}
-        >
-          {showFull ? "− פרטים מלאים" : "+ פרטים מלאים"}
-        </button>
+        {(q.whatToMention.length > 0 || q.commonMistakes.length > 0 || q.tags.length > 0) && (
+          <button
+            type="button"
+            className="pq-toggle-btn"
+            aria-expanded={showDetails}
+            onClick={() => setShowDetails((v) => !v)}
+          >
+            {showDetails ? "− פרטים נוספים" : "+ פרטים נוספים"}
+          </button>
+        )}
       </div>
 
-      {showExplanation && (
+      {showExplanation && q.simpleExplanation && (
         <div className="pq-expandable">
-          <p className="pq-expandable__label">הסבר פשוט</p>
+          <p className="pq-expandable__label">הרחבה</p>
           <p className="pq-expandable__text">{q.simpleExplanation}</p>
         </div>
       )}
 
-      {showExample && (
+      {showExample && q.example && (
         <div className="pq-expandable">
           <p className="pq-expandable__label">דוגמה</p>
           <p className="pq-expandable__text">{q.example}</p>
         </div>
       )}
 
-      {showFull && (
+      {showDetails && (
         <div className="pq-expandable">
           {q.whatToMention.length > 0 && (
             <>
@@ -190,7 +176,7 @@ function CompactCard({ q, onDelete }: CardProps) {
   const [showExample, setShowExample] = useState(false);
 
   return (
-    <div className={`pq-card pq-card--compact${q.source === "user" ? " pq-card--user" : ""}`}>
+    <div className={`pq-card pq-card--compact${q.source === "user" || q.source === "job-description" ? " pq-card--user" : ""}`}>
       <div className="pq-card__header">
         <div className="pq-card__meta">
           <span className="chip chip--category">{CATEGORY_LABELS[q.category]}</span>
@@ -199,8 +185,9 @@ function CompactCard({ q, onDelete }: CardProps) {
             {DIFFICULTY_LABELS[q.difficulty]}
           </span>
           {q.source === "user" && <span className="chip chip--user">שאלה שלי</span>}
+          {q.source === "job-description" && <span className="chip chip--job-desc">נוצר מתיאור משרה</span>}
         </div>
-        {onDelete && q.source === "user" && (
+        {onDelete && (q.source === "user" || q.source === "job-description") && (
           <button
             type="button"
             className="pq-card__delete"
@@ -222,7 +209,7 @@ function CompactCard({ q, onDelete }: CardProps) {
           aria-expanded={showExplanation}
           onClick={() => setShowExplanation((v) => !v)}
         >
-          {showExplanation ? "− הסבר פשוט" : "+ הסבר פשוט"}
+          {showExplanation ? "− הרחבה" : "+ הרחבה"}
         </button>
         <button
           type="button"
@@ -234,14 +221,16 @@ function CompactCard({ q, onDelete }: CardProps) {
         </button>
       </div>
 
-      {showExplanation && (
+      {showExplanation && q.simpleExplanation && (
         <div className="pq-expandable">
+          <p className="pq-expandable__label">הרחבה</p>
           <p className="pq-expandable__text">{q.simpleExplanation}</p>
         </div>
       )}
 
-      {showExample && (
+      {showExample && q.example && (
         <div className="pq-expandable">
+          <p className="pq-expandable__label">דוגמה</p>
           <p className="pq-expandable__text">{q.example}</p>
         </div>
       )}
@@ -292,7 +281,7 @@ function QuestionsTable({
               <>
                 <tr
                   key={q.id}
-                  className={q.source === "user" ? "table-row--user" : ""}
+                  className={q.source === "user" || q.source === "job-description" ? "table-row--user" : ""}
                 >
                   <td>
                     <span className="chip chip--category chip--sm">
@@ -314,7 +303,7 @@ function QuestionsTable({
                       aria-expanded={showExp}
                       onClick={() => toggle(q.id, "explanation")}
                     >
-                      {showExp ? "− הסבר" : "+ הסבר"}
+                      {showExp ? "− הרחבה" : "+ הרחבה"}
                     </button>
                     <button
                       type="button"
@@ -324,7 +313,7 @@ function QuestionsTable({
                     >
                       {showEx ? "− דוגמה" : "+ דוגמה"}
                     </button>
-                    {onDelete && q.source === "user" && (
+                    {onDelete && (q.source === "user" || q.source === "job-description") && (
                       <button
                         type="button"
                         className="table-action-button table-action-button--delete"
@@ -340,7 +329,7 @@ function QuestionsTable({
                     <td colSpan={6}>
                       {showExp && (
                         <div className="table-expanded-section">
-                          <span className="pq-expandable__label">הסבר פשוט: </span>
+                          <span className="pq-expandable__label">הרחבה: </span>
                           {q.simpleExplanation}
                         </div>
                       )}
@@ -551,8 +540,8 @@ function PracticeMode({
 
                 {current.simpleExplanation && (
                   <div className="practice-answer-section">
-                    <p className="pq-expandable__label">הסבר פשוט</p>
-                    <p>{current.simpleExplanation}</p>
+                    <p className="pq-expandable__label">הרחבה</p>
+                    <p className="pq-expandable__text">{current.simpleExplanation}</p>
                   </div>
                 )}
 
@@ -629,6 +618,220 @@ function PracticeMode({
   );
 }
 
+// ─── Job Description Analyzer ──────────────────────────────────────────────
+
+type AnalyzerProps = {
+  allQuestions: ProfessionalQuestion[];
+  onAddQuestions: (
+    qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[]
+  ) => void;
+  categoryLabels: Record<QuestionCategory, string>;
+};
+
+function JobDescriptionAnalyzer({ allQuestions, onAddQuestions, categoryLabels }: AnalyzerProps) {
+  const [open, setOpen] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDesc, setJobDesc] = useState("");
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [addedMsg, setAddedMsg] = useState(false);
+
+  function handleAnalyze() {
+    if (!jobDesc.trim()) return;
+    const r = analyzeJobDescription(jobTitle, jobDesc, allQuestions);
+    setResult(r);
+    const allIndexes = new Set(r.suggestedNewQuestions.map((_, i) => i));
+    setSelected(allIndexes);
+    setAddedMsg(false);
+  }
+
+  function handleClear() {
+    setJobTitle("");
+    setJobDesc("");
+    setResult(null);
+    setSelected(new Set());
+    setAddedMsg(false);
+  }
+
+  function toggleSelected(i: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }
+
+  function handleAddSelected() {
+    if (!result) return;
+    const toAdd = result.suggestedNewQuestions.filter((_, i) => selected.has(i));
+    if (toAdd.length === 0) return;
+    onAddQuestions(toAdd);
+    setAddedMsg(true);
+    setResult(null);
+    setSelected(new Set());
+  }
+
+  return (
+    <div className="job-description-analyzer card">
+      <button
+        type="button"
+        className="analyzer-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span>{open ? "▲" : "▼"}</span>
+        <span>יצירת שאלות מתיאור משרה</span>
+      </button>
+
+      {open && (
+        <div className="job-description-analyzer-panel">
+          <p className="analyzer-subtitle">
+            המערכת מנתחת מקומית מילות מפתח מתוך תיאור המשרה ומציעה שאלות מתוך תבניות קיימות.
+            אין שימוש ב-AI ואין שליחה לשרת.
+          </p>
+
+          <div className="pq-form-row">
+            <div className="form-group">
+              <label className="form-label">כותרת משרה</label>
+              <input
+                type="text"
+                className="form-input"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                placeholder="Data Analyst, QA Engineer, Frontend Developer..."
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">תיאור משרה</label>
+            <textarea
+              className="form-input form-textarea"
+              rows={5}
+              value={jobDesc}
+              onChange={(e) => setJobDesc(e.target.value)}
+              placeholder="הדביקי את תיאור המשרה כאן..."
+            />
+          </div>
+
+          <div className="btn-row">
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={handleAnalyze}
+              disabled={!jobDesc.trim()}
+            >
+              ניתוח תיאור משרה
+            </button>
+            {(result || jobDesc) && (
+              <button type="button" className="btn btn--secondary" onClick={handleClear}>
+                ניקוי ניתוח
+              </button>
+            )}
+          </div>
+
+          {addedMsg && (
+            <p className="pq-added-msg" role="status">
+              השאלות נוספו למאגר ונשמרו מקומית.
+            </p>
+          )}
+
+          {result && (
+            <div className="analyzer-results">
+              <div className="analyzer-category-chips">
+                <span className="analyzer-label">קטגוריות שזוהו:</span>
+                {result.detectedCategories.map((cat) => (
+                  <span key={cat} className="chip chip--category">
+                    {categoryLabels[cat]}
+                  </span>
+                ))}
+              </div>
+
+              {result.matchingExistingQuestions.length > 0 && (
+                <div className="analyzer-section">
+                  <h4 className="analyzer-section-title">
+                    שאלות קיימות במאגר שרלוונטיות למשרה ({result.matchingExistingQuestions.length})
+                  </h4>
+                  <ul className="analyzer-existing-list">
+                    {result.matchingExistingQuestions.map((q) => (
+                      <li key={q.id} className="analyzer-existing-item">
+                        <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
+                        <span>{q.question}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {result.suggestedNewQuestions.length > 0 && (
+                <div className="analyzer-section">
+                  <h4 className="analyzer-section-title">
+                    שאלות חדשות מוצעות ({result.suggestedNewQuestions.length})
+                  </h4>
+                  <p className="analyzer-note">
+                    סמני שאלות שתרצי להוסיף למאגר. הן ייוצגו עם תווית "נוצר מתיאור משרה".
+                  </p>
+                  <div className="analyzer-suggestion-list">
+                    {result.suggestedNewQuestions.map((q, i) => (
+                      <label key={i} className="analyzer-suggestion-card">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(i)}
+                          onChange={() => toggleSelected(i)}
+                        />
+                        <div className="analyzer-suggestion-body">
+                          <div className="analyzer-suggestion-meta">
+                            <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
+                            <span className="chip chip--topic chip--sm">{q.topic}</span>
+                          </div>
+                          <p className="analyzer-suggestion-q">{q.question}</p>
+                          <p className="analyzer-suggestion-a">{q.shortAnswer}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="analyzer-actions btn-row">
+                    <button
+                      type="button"
+                      className="btn btn--primary"
+                      onClick={handleAddSelected}
+                      disabled={selected.size === 0}
+                    >
+                      הוספת שאלות נבחרות ({selected.size})
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() =>
+                        setSelected(new Set(result.suggestedNewQuestions.map((_, i) => i)))
+                      }
+                    >
+                      בחירת הכל
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => setSelected(new Set())}
+                    >
+                      ביטול בחירה
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {result.suggestedNewQuestions.length === 0 && (
+                <p className="analyzer-note">כל השאלות המוצעות כבר קיימות במאגר שלך.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Add form ───────────────────────────────────────────────────────────────
 
 const BLANK_FORM = {
@@ -647,7 +850,7 @@ const BLANK_FORM = {
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 function ProfessionalInterviewPage() {
-  const { questions, addQuestion, deleteUserQuestion } = useProfessionalQuestions();
+  const { questions, addQuestion, addQuestions, deleteUserQuestion } = useProfessionalQuestions();
   const { progress, recordResult, resetProgress } = usePracticeProgress();
 
   const [practiceMode, setPracticeMode] = useState(false);
@@ -659,6 +862,12 @@ function ProfessionalInterviewPage() {
   const [form, setForm] = useState(BLANK_FORM);
   const [formError, setFormError] = useState("");
   const [addedMsg, setAddedMsg] = useState(false);
+  const [filterTopic, setFilterTopic] = useState("");
+  const [tableCategoryFilter, setTableCategoryFilter] = useState<QuestionCategory | "">("");
+  const [tableTopicFilter, setTableTopicFilter] = useState("");
+  const [tableDifficultyFilter, setTableDifficultyFilter] = useState<QuestionDifficulty | "">("");
+  const [tableSourceFilter, setTableSourceFilter] = useState<"" | QuestionSource>("");
+  const [tableSearchQuery, setTableSearchQuery] = useState("");
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -674,17 +883,53 @@ function ProfessionalInterviewPage() {
         item.tags.some((t) => t.toLowerCase().includes(q));
       const matchCategory = !filterCategory || item.category === filterCategory;
       const matchDifficulty = !filterDifficulty || item.difficulty === filterDifficulty;
-      return matchSearch && matchCategory && matchDifficulty;
+      const matchTopic = !filterTopic || item.topic === filterTopic;
+      return matchSearch && matchCategory && matchDifficulty && matchTopic;
     });
-  }, [questions, search, filterCategory, filterDifficulty]);
+  }, [questions, search, filterCategory, filterDifficulty, filterTopic]);
 
-  const hasActiveFilters = search.trim() !== "" || filterCategory !== "" || filterDifficulty !== "";
+  const topicOptions = useMemo(() => {
+    const pool = filterCategory
+      ? questions.filter((q) => q.category === filterCategory)
+      : questions;
+    return [...new Set(pool.map((q) => q.topic))].sort();
+  }, [questions, filterCategory]);
+
+  const tableTopics = useMemo(
+    () => [...new Set(filtered.map((q) => q.topic))].sort(),
+    [filtered]
+  );
+
+  const tableFiltered = useMemo(() => {
+    const q = tableSearchQuery.trim().toLowerCase();
+    return filtered.filter((item) => {
+      const matchCat = !tableCategoryFilter || item.category === tableCategoryFilter;
+      const matchTopic = !tableTopicFilter || item.topic === tableTopicFilter;
+      const matchDiff = !tableDifficultyFilter || item.difficulty === tableDifficultyFilter;
+      const matchSource = !tableSourceFilter || item.source === tableSourceFilter;
+      const matchSearch =
+        !q ||
+        item.question.toLowerCase().includes(q) ||
+        item.shortAnswer.toLowerCase().includes(q);
+      return matchCat && matchTopic && matchDiff && matchSource && matchSearch;
+    });
+  }, [filtered, tableCategoryFilter, tableTopicFilter, tableDifficultyFilter, tableSourceFilter, tableSearchQuery]);
+
+  const hasActiveTableFilters =
+    tableCategoryFilter !== "" ||
+    tableTopicFilter !== "" ||
+    tableDifficultyFilter !== "" ||
+    tableSourceFilter !== "" ||
+    tableSearchQuery.trim() !== "";
+
+  const hasActiveFilters = search.trim() !== "" || filterCategory !== "" || filterDifficulty !== "" || filterTopic !== "";
 
   function buildFilterSummary() {
     const parts: string[] = [];
     if (search.trim()) parts.push(`חיפוש: "${search.trim()}"`);
     if (filterCategory) parts.push(`קטגוריה: ${CATEGORY_LABELS[filterCategory]}`);
     if (filterDifficulty) parts.push(`רמה: ${DIFFICULTY_LABELS[filterDifficulty]}`);
+    if (filterTopic) parts.push(`נושא: ${filterTopic}`);
     return parts.join(" · ");
   }
 
@@ -796,6 +1041,19 @@ function ProfessionalInterviewPage() {
             <option value="">כל הרמות</option>
             <option value="basic">בסיסי</option>
             <option value="intermediate">בינוני</option>
+            <option value="advanced">מתקדם</option>
+          </select>
+
+          <select
+            className="form-input pq-select"
+            value={filterTopic}
+            onChange={(e) => setFilterTopic(e.target.value)}
+            aria-label="סינון לפי נושא"
+          >
+            <option value="">כל הנושאים</option>
+            {topicOptions.map((topic) => (
+              <option key={topic} value={topic}>{topic}</option>
+            ))}
           </select>
 
           <button
@@ -805,6 +1063,7 @@ function ProfessionalInterviewPage() {
               setSearch("");
               setFilterCategory("");
               setFilterDifficulty("");
+              setFilterTopic("");
             }}
           >
             איפוס
@@ -996,6 +1255,15 @@ function ProfessionalInterviewPage() {
         </div>
       )}
 
+      {/* Job Description Analyzer */}
+      {!practiceMode && (
+        <JobDescriptionAnalyzer
+          allQuestions={questions}
+          onAddQuestions={(qs) => addQuestions(qs, "job-description")}
+          categoryLabels={CATEGORY_LABELS}
+        />
+      )}
+
       {/* Results or Practice Mode */}
       {practiceMode ? (
         <PracticeMode
@@ -1010,17 +1278,98 @@ function ProfessionalInterviewPage() {
           <p className="empty-state__text">לא נמצאו שאלות התואמות לחיפוש.</p>
         </div>
       ) : viewMode === "table" ? (
-        <QuestionsTable
-          questions={filtered}
-          onDelete={deleteUserQuestion}
-        />
+        <>
+          <div className="table-filter-bar card">
+            <div className="table-filter-title">
+              <span>סינון בתוך הטבלה</span>
+              {hasActiveTableFilters && (
+                <button
+                  type="button"
+                  className="table-filter-clear-button"
+                  onClick={() => {
+                    setTableCategoryFilter("");
+                    setTableTopicFilter("");
+                    setTableDifficultyFilter("");
+                    setTableSourceFilter("");
+                    setTableSearchQuery("");
+                  }}
+                >
+                  ניקוי סינון טבלה
+                </button>
+              )}
+            </div>
+            <div className="table-filter-controls">
+              <select
+                className="form-input pq-select"
+                value={tableCategoryFilter}
+                onChange={(e) => setTableCategoryFilter(e.target.value as QuestionCategory | "")}
+                aria-label="סינון טבלה לפי תחום"
+              >
+                <option value="">תחום</option>
+                {ALL_CATEGORIES.filter((cat) => filtered.some((q) => q.category === cat)).map((cat) => (
+                  <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                ))}
+              </select>
+              <select
+                className="form-input pq-select"
+                value={tableTopicFilter}
+                onChange={(e) => setTableTopicFilter(e.target.value)}
+                aria-label="סינון טבלה לפי נושא"
+              >
+                <option value="">נושא</option>
+                {tableTopics.map((topic) => (
+                  <option key={topic} value={topic}>{topic}</option>
+                ))}
+              </select>
+              <select
+                className="form-input pq-select"
+                value={tableDifficultyFilter}
+                onChange={(e) => setTableDifficultyFilter(e.target.value as QuestionDifficulty | "")}
+                aria-label="סינון טבלה לפי רמה"
+              >
+                <option value="">רמה</option>
+                <option value="basic">בסיסי</option>
+                <option value="intermediate">בינוני</option>
+                <option value="advanced">מתקדם</option>
+              </select>
+              <select
+                className="form-input pq-select"
+                value={tableSourceFilter}
+                onChange={(e) => setTableSourceFilter(e.target.value as "" | QuestionSource)}
+                aria-label="סינון טבלה לפי מקור"
+              >
+                <option value="">מקור</option>
+                <option value="demo">דמו</option>
+                <option value="user">נוסף ידנית</option>
+                <option value="job-description">נוצר מתיאור משרה</option>
+              </select>
+              <input
+                type="search"
+                className="form-input"
+                placeholder="חיפוש בשאלה או בתשובה..."
+                value={tableSearchQuery}
+                onChange={(e) => setTableSearchQuery(e.target.value)}
+                aria-label="חיפוש בתוך הטבלה"
+              />
+            </div>
+            <p className="table-filter-summary">
+              {hasActiveTableFilters
+                ? `סינון טבלה פעיל: מציג ${tableFiltered.length} מתוך ${filtered.length} שאלות`
+                : "לא הופעל סינון פנימי בטבלה"}
+            </p>
+          </div>
+          <QuestionsTable
+            questions={tableFiltered}
+            onDelete={deleteUserQuestion}
+          />
+        </>
       ) : viewMode === "compact" ? (
         <div className="pq-list compact-cards-view">
           {filtered.map((q) => (
             <CompactCard
               key={q.id}
               q={q}
-              onDelete={q.source === "user" ? deleteUserQuestion : undefined}
+              onDelete={q.source === "user" || q.source === "job-description" ? deleteUserQuestion : undefined}
             />
           ))}
         </div>
@@ -1030,7 +1379,7 @@ function ProfessionalInterviewPage() {
             <QuestionCard
               key={q.id}
               q={q}
-              onDelete={q.source === "user" ? deleteUserQuestion : undefined}
+              onDelete={q.source === "user" || q.source === "job-description" ? deleteUserQuestion : undefined}
             />
           ))}
         </div>

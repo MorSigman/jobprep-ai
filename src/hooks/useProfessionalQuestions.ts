@@ -23,6 +23,7 @@ function saveUserQuestions(questions: ProfessionalQuestion[]): void {
 type UseProfessionalQuestionsResult = {
   questions: ProfessionalQuestion[];
   addQuestion: (q: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">) => void;
+  addQuestions: (qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[], source: "user" | "job-description") => void;
   deleteUserQuestion: (id: string) => void;
 };
 
@@ -49,11 +50,28 @@ export function useProfessionalQuestions(): UseProfessionalQuestionsResult {
     saveUserQuestions(updated);
   }
 
+  function addQuestions(
+    qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[],
+    source: "user" | "job-description"
+  ): void {
+    const today = new Date().toISOString().slice(0, 10);
+    const newQs: ProfessionalQuestion[] = qs.map((q, i) => ({
+      ...q,
+      id: `${source}-${Date.now()}-${i}`,
+      source,
+      createdAt: today,
+      updatedAt: today,
+    }));
+    const updated = [...userQuestions, ...newQs];
+    setUserQuestions(updated);
+    saveUserQuestions(updated);
+  }
+
   function deleteUserQuestion(id: string): void {
     const updated = userQuestions.filter((q) => q.id !== id);
     setUserQuestions(updated);
     saveUserQuestions(updated);
   }
 
-  return { questions, addQuestion, deleteUserQuestion };
+  return { questions, addQuestion, addQuestions, deleteUserQuestion };
 }
