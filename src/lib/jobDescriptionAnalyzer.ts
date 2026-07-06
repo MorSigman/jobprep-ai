@@ -390,6 +390,7 @@ const TEMPLATES: Record<QuestionCategory, QuestionTemplate[]> = {
       tags: ["self-intro", "interview", "general"],
     },
   ],
+  Personal: [],
 };
 
 // ─── Analysis ─────────────────────────────────────────────────────────────────

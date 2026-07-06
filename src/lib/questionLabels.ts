@@ -21,6 +21,7 @@ export const CATEGORY_LABELS: Record<QuestionCategory, string> = {
   "Machine Learning": "למידת מכונה",
   "Deep Learning": "למידה עמוקה",
   AI: "בינה מלאכותית",
+  Personal: "שאלות אישיות / התנהגותיות",
 };
 
 export const DIFFICULTY_LABELS: Record<QuestionDifficulty, string> = {
@@ -33,4 +34,5 @@ export const SOURCE_LABELS: Record<QuestionSource, string> = {
   demo: "דמו",
   user: "נוסף ידנית",
   "job-description": "נוצר מתיאור משרה",
+  ai: "נוצר בעזרת AI",
 };

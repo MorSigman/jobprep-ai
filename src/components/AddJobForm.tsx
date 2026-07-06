@@ -4,10 +4,12 @@ import type { JobApplication, JobCategory, JobStatus } from "../types/job";
 const CATEGORY_OPTIONS: JobCategory[] = [
   "Frontend",
   "Backend",
+  "Full Stack",
   "QA",
   "Data Analyst",
   "Cyber",
   "Product",
+  "UX/UI",
   "Other",
 ];
 

@@ -32,10 +32,12 @@ const HEBREW_DAY_NAMES = [
 const CATEGORY_COLORS: Record<string, string> = {
   Frontend: "#c4a882",
   Backend: "#9e8c82",
+  "Full Stack": "#b8a090",
   QA: "#b89080",
   "Data Analyst": "#8db4a8",
   Cyber: "#a0a8b0",
   Product: "#c8b89a",
+  "UX/UI": "#b8a8c4",
   Other: "#c0b8b0",
 };
 

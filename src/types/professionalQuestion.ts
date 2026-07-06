@@ -14,10 +14,11 @@ export type QuestionCategory =
   | "Architecture"
   | "Machine Learning"
   | "Deep Learning"
-  | "AI";
+  | "AI"
+  | "Personal";
 
 export type QuestionDifficulty = "basic" | "intermediate" | "advanced";
-export type QuestionSource = "demo" | "user" | "job-description";
+export type QuestionSource = "demo" | "user" | "job-description" | "ai";
 
 export type ProfessionalQuestion = {
   id: string;

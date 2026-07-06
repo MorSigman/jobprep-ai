@@ -13,6 +13,14 @@ import {
   CATEGORY_LABELS,
   DIFFICULTY_LABELS,
 } from "../lib/questionLabels";
+import { searchLocalQA } from "../lib/localQA";
+import type { QAMatch } from "../lib/localQA";
+import { useAISettings } from "../lib/useAISettings";
+import { redactPersonalInfo } from "../lib/redactPersonalInfo";
+import { fetchAIJobQuestions, fetchAIAnswer } from "../lib/aiClient";
+import type { AIRawQuestion, AIAnswerResult } from "../lib/aiClient";
+import { AIConsentModal } from "../components/AIConsentModal";
+import type { ConsentPayload } from "../components/AIConsentModal";
 
 type ViewMode = "cards" | "compact" | "table";
 
@@ -33,6 +41,7 @@ const ALL_CATEGORIES: QuestionCategory[] = [
   "Machine Learning",
   "Deep Learning",
   "AI",
+  "Personal",
 ];
 
 // ─── Full Card ─────────────────────────────────────────────────────────────
@@ -48,7 +57,7 @@ function QuestionCard({ q, onDelete }: CardProps) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className={`pq-card${q.source === "user" || q.source === "job-description" ? " pq-card--user" : ""}`}>
+    <div className={`pq-card${q.source !== "demo" ? " pq-card--user" : ""}`}>
       <div className="pq-card__header">
         <div className="pq-card__meta">
           <span className="chip chip--category">{CATEGORY_LABELS[q.category]}</span>
@@ -57,8 +66,9 @@ function QuestionCard({ q, onDelete }: CardProps) {
           </span>
           {q.source === "user" && <span className="chip chip--user">שאלה שלי</span>}
           {q.source === "job-description" && <span className="chip chip--job-desc">נוצר מתיאור משרה</span>}
+          {q.source === "ai" && <span className="chip chip--ai">נוצר בעזרת AI</span>}
         </div>
-        {onDelete && (q.source === "user" || q.source === "job-description") && (
+        {onDelete && q.source !== "demo" && (
           <button
             type="button"
             className="pq-card__delete"
@@ -155,7 +165,7 @@ function CompactCard({ q, onDelete }: CardProps) {
   const [showExample, setShowExample] = useState(false);
 
   return (
-    <div className={`pq-card pq-card--compact${q.source === "user" || q.source === "job-description" ? " pq-card--user" : ""}`}>
+    <div className={`pq-card pq-card--compact${q.source !== "demo" ? " pq-card--user" : ""}`}>
       <div className="pq-card__header">
         <div className="pq-card__meta">
           <span className="chip chip--category">{CATEGORY_LABELS[q.category]}</span>
@@ -165,8 +175,9 @@ function CompactCard({ q, onDelete }: CardProps) {
           </span>
           {q.source === "user" && <span className="chip chip--user">שאלה שלי</span>}
           {q.source === "job-description" && <span className="chip chip--job-desc">נוצר מתיאור משרה</span>}
+          {q.source === "ai" && <span className="chip chip--ai">נוצר בעזרת AI</span>}
         </div>
-        {onDelete && (q.source === "user" || q.source === "job-description") && (
+        {onDelete && q.source !== "demo" && (
           <button
             type="button"
             className="pq-card__delete"
@@ -260,7 +271,7 @@ function QuestionsTable({
               <>
                 <tr
                   key={q.id}
-                  className={q.source === "user" || q.source === "job-description" ? "table-row--user" : ""}
+                  className={q.source !== "demo" ? "table-row--user" : ""}
                 >
                   <td>
                     <span className="chip chip--category chip--sm">
@@ -292,7 +303,7 @@ function QuestionsTable({
                     >
                       {showEx ? "− דוגמה" : "+ דוגמה"}
                     </button>
-                    {onDelete && (q.source === "user" || q.source === "job-description") && (
+                    {onDelete && q.source !== "demo" && (
                       <button
                         type="button"
                         className="table-action-button table-action-button--delete"
@@ -597,6 +608,76 @@ function PracticeMode({
   );
 }
 
+// ─── AI Result Card ─────────────────────────────────────────────────────────
+
+type AIResultCardProps = {
+  q: AIRawQuestion;
+  selected: boolean;
+  onToggle: () => void;
+};
+
+function AIResultCard({ q, selected, onToggle }: AIResultCardProps) {
+  const [showExpand, setShowExpand] = useState(false);
+  const [showExample, setShowExample] = useState(false);
+
+  return (
+    <div className="ai-result-card">
+      <input
+        type="checkbox"
+        className="ai-result-card__checkbox"
+        checked={selected}
+        onChange={onToggle}
+        aria-label={`בחר שאלה: ${q.question}`}
+      />
+      <div className="ai-result-card__body">
+        <div className="ai-result-card__meta">
+          <span className="chip chip--category chip--sm">
+            {(CATEGORY_LABELS as Record<string, string>)[q.category] ?? q.category}
+          </span>
+          <span className="chip chip--topic chip--sm">{q.topic}</span>
+          <span className={`chip chip--difficulty chip--difficulty-${q.difficulty} chip--sm`}>
+            {DIFFICULTY_LABELS[q.difficulty]}
+          </span>
+        </div>
+        <p className="ai-result-card__question">{q.question}</p>
+        <p className="ai-result-card__answer">{q.shortAnswer}</p>
+        <div className="ai-result-card__toggles">
+          {q.simpleExplanation && (
+            <button
+              type="button"
+              className="pq-toggle-btn"
+              onClick={() => setShowExpand((v) => !v)}
+            >
+              {showExpand ? "− הרחבה" : "+ הרחבה"}
+            </button>
+          )}
+          {q.example && (
+            <button
+              type="button"
+              className="pq-toggle-btn"
+              onClick={() => setShowExample((v) => !v)}
+            >
+              {showExample ? "− דוגמה" : "+ דוגמה"}
+            </button>
+          )}
+        </div>
+        {showExpand && q.simpleExplanation && (
+          <div className="ai-result-expanded">
+            <p className="ai-result-expanded__label">הרחבה</p>
+            <p>{q.simpleExplanation}</p>
+          </div>
+        )}
+        {showExample && q.example && (
+          <div className="ai-result-expanded">
+            <p className="ai-result-expanded__label">דוגמה</p>
+            <p>{q.example}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Job Description Analyzer ──────────────────────────────────────────────
 
 type AnalyzerProps = {
@@ -604,16 +685,37 @@ type AnalyzerProps = {
   onAddQuestions: (
     qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[]
   ) => void;
+  onAddAIQuestions: (
+    qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[]
+  ) => void;
   categoryLabels: Record<QuestionCategory, string>;
+  aiEnabled: boolean;
+  redactBeforeSend: boolean;
 };
 
-function JobDescriptionAnalyzer({ allQuestions, onAddQuestions, categoryLabels }: AnalyzerProps) {
+function JobDescriptionAnalyzer({
+  allQuestions,
+  onAddQuestions,
+  onAddAIQuestions,
+  categoryLabels,
+  aiEnabled,
+  redactBeforeSend,
+}: AnalyzerProps) {
   const [open, setOpen] = useState(false);
   const [jobTitle, setJobTitle] = useState("");
   const [jobDesc, setJobDesc] = useState("");
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [addedMsg, setAddedMsg] = useState(false);
+
+  // AI state
+  const [aiLoading, setAILoading] = useState(false);
+  const [aiError, setAIError] = useState("");
+  const [aiResults, setAIResults] = useState<AIRawQuestion[]>([]);
+  const [aiSelected, setAISelected] = useState<Set<number>>(new Set());
+  const [aiAddedMsg, setAIAddedMsg] = useState(false);
+  const [aiDisabledMsg, setAIDisabledMsg] = useState(false);
+  const [consentPayload, setConsentPayload] = useState<ConsentPayload | null>(null);
 
   function handleAnalyze() {
     if (!jobDesc.trim()) return;
@@ -630,6 +732,10 @@ function JobDescriptionAnalyzer({ allQuestions, onAddQuestions, categoryLabels }
     setResult(null);
     setSelected(new Set());
     setAddedMsg(false);
+    setAIResults([]);
+    setAISelected(new Set());
+    setAIError("");
+    setAIDisabledMsg(false);
   }
 
   function toggleSelected(i: number) {
@@ -651,161 +757,845 @@ function JobDescriptionAnalyzer({ allQuestions, onAddQuestions, categoryLabels }
     setSelected(new Set());
   }
 
+  // ─── AI handlers ──────────────────────────────────────────────────────────
+
+  function handleAIClick() {
+    if (!aiEnabled) {
+      setAIDisabledMsg(true);
+      return;
+    }
+    if (!jobDesc.trim()) return;
+    setAIDisabledMsg(false);
+
+    const descToSend = redactBeforeSend ? redactPersonalInfo(jobDesc) : jobDesc;
+    const titleToSend = redactBeforeSend ? redactPersonalInfo(jobTitle) : jobTitle;
+
+    setConsentPayload({
+      taskLabel: "יצירת שאלות ראיון מתיאור משרה",
+      fields: [
+        { label: "כותרת משרה", value: titleToSend || "לא צוין" },
+        {
+          label: "תיאור משרה",
+          value: descToSend.length > 80 ? descToSend.slice(0, 80) + "…" : descToSend,
+        },
+      ],
+      textToSend: descToSend,
+      isRedacted: redactBeforeSend,
+    });
+  }
+
+  async function handleConfirmAI() {
+    if (!consentPayload) return;
+    const payload = consentPayload;
+    setConsentPayload(null);
+    setAILoading(true);
+    setAIError("");
+    setAIResults([]);
+
+    try {
+      const qs = await fetchAIJobQuestions({
+        jobTitle: redactBeforeSend ? redactPersonalInfo(jobTitle) : jobTitle,
+        jobCategory: "",
+        jobDescription: payload.textToSend,
+        taskType: "job-questions",
+      });
+      setAIResults(qs);
+      setAISelected(new Set(qs.map((_, i) => i)));
+    } catch (err) {
+      setAIError(err instanceof Error ? err.message : "שגיאה לא ידועה");
+    } finally {
+      setAILoading(false);
+    }
+  }
+
+  function toggleAISelected(i: number) {
+    setAISelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  }
+
+  function handleAddAISelected() {
+    const toAdd = aiResults
+      .filter((_, i) => aiSelected.has(i))
+      .map((q) => ({
+        category: (q.category as QuestionCategory) || "General",
+        topic: q.topic || "כללי",
+        difficulty: q.difficulty,
+        question: q.question,
+        shortAnswer: q.shortAnswer,
+        simpleExplanation: q.simpleExplanation || "",
+        example: q.example || "",
+        whatToMention: Array.isArray(q.whatToMention) ? q.whatToMention : [],
+        commonMistakes: Array.isArray(q.commonMistakes) ? q.commonMistakes : [],
+        tags: Array.isArray(q.tags) ? q.tags : [],
+      }));
+    if (!toAdd.length) return;
+    onAddAIQuestions(toAdd);
+    setAIResults([]);
+    setAISelected(new Set());
+    setAIAddedMsg(true);
+    setTimeout(() => setAIAddedMsg(false), 4000);
+  }
+
   return (
-    <div className="job-description-analyzer card">
-      <button
-        type="button"
-        className="analyzer-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>{open ? "▲" : "▼"}</span>
-        <span>יצירת שאלות מתיאור משרה</span>
-      </button>
+    <>
+      {consentPayload && (
+        <AIConsentModal
+          payload={consentPayload}
+          onConfirm={handleConfirmAI}
+          onCancel={() => setConsentPayload(null)}
+        />
+      )}
 
-      {open && (
-        <div className="job-description-analyzer-panel">
-          <p className="analyzer-subtitle">
-            המערכת מנתחת מקומית מילות מפתח מתוך תיאור המשרה ומציעה שאלות מתוך תבניות קיימות.
-            אין שימוש ב-AI ואין שליחה לשרת.
-          </p>
+      <div className="job-description-analyzer card">
+        <button
+          type="button"
+          className="analyzer-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span>{open ? "▲" : "▼"}</span>
+          <span>יצירת שאלות מתיאור משרה</span>
+        </button>
 
-          <div className="pq-form-row">
+        {open && (
+          <div className="job-description-analyzer-panel">
+            <p className="analyzer-subtitle">
+              המערכת מנתחת מקומית מילות מפתח ומציעה שאלות מתבניות קיימות.
+              ניתן גם לשלוח ל-AI לקבלת שאלות מותאמות אישית.
+            </p>
+
+            <div className="pq-form-row">
+              <div className="form-group">
+                <label className="form-label">כותרת משרה</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="Data Analyst, QA Engineer, Frontend Developer..."
+                />
+              </div>
+            </div>
+
             <div className="form-group">
-              <label className="form-label">כותרת משרה</label>
-              <input
-                type="text"
-                className="form-input"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="Data Analyst, QA Engineer, Frontend Developer..."
+              <label className="form-label">תיאור משרה</label>
+              <textarea
+                className="form-input form-textarea"
+                rows={5}
+                value={jobDesc}
+                onChange={(e) => setJobDesc(e.target.value)}
+                placeholder="הדביקי את תיאור המשרה כאן..."
               />
             </div>
-          </div>
 
-          <div className="form-group">
-            <label className="form-label">תיאור משרה</label>
-            <textarea
-              className="form-input form-textarea"
-              rows={5}
-              value={jobDesc}
-              onChange={(e) => setJobDesc(e.target.value)}
-              placeholder="הדביקי את תיאור המשרה כאן..."
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--primary"
+                onClick={handleAnalyze}
+                disabled={!jobDesc.trim()}
+              >
+                ניתוח תיאור משרה
+              </button>
+              <button
+                type="button"
+                className="btn btn--ai"
+                onClick={handleAIClick}
+                disabled={!jobDesc.trim() || aiLoading}
+                title={
+                  aiEnabled
+                    ? "יצירת שאלות בעזרת AI"
+                    : "AI כבוי — הפעלי ב\"הפרופיל שלי\""
+                }
+              >
+                {aiLoading ? "⏳ יוצר שאלות…" : "✨ יצירת שאלות בעזרת AI"}
+              </button>
+              {(result || jobDesc || aiResults.length > 0) && (
+                <button type="button" className="btn btn--secondary" onClick={handleClear}>
+                  ניקוי
+                </button>
+              )}
+            </div>
+
+            {aiDisabledMsg && (
+              <div className="ai-disabled-msg" role="status">
+                AI כבוי. אפשר להפעיל AI בהגדרות בעמוד{" "}
+                <strong>הפרופיל שלי</strong> או להשתמש בניתוח המקומי.
+              </div>
+            )}
+
+            {aiError && (
+              <div className="ai-error-msg" role="alert">
+                {aiError}
+              </div>
+            )}
+
+            {aiLoading && (
+              <div className="ai-loading" role="status">
+                ⏳ שולח לשרת AI ומחכה לתשובה…
+              </div>
+            )}
+
+            {addedMsg && (
+              <p className="pq-added-msg" role="status">
+                השאלות נוספו למאגר ונשמרו מקומית.
+              </p>
+            )}
+
+            {aiAddedMsg && (
+              <p className="pq-added-msg" role="status">
+                שאלות ה-AI נוספו למאגר ונשמרו מקומית.
+              </p>
+            )}
+
+            {/* Local analysis results */}
+            {result && (
+              <div className="analyzer-results">
+                <div className="analyzer-category-chips">
+                  <span className="analyzer-label">קטגוריות שזוהו:</span>
+                  {result.detectedCategories.map((cat) => (
+                    <span key={cat} className="chip chip--category">
+                      {categoryLabels[cat]}
+                    </span>
+                  ))}
+                </div>
+
+                {result.matchingExistingQuestions.length > 0 && (
+                  <div className="analyzer-section">
+                    <h4 className="analyzer-section-title">
+                      שאלות קיימות במאגר שרלוונטיות למשרה ({result.matchingExistingQuestions.length})
+                    </h4>
+                    <ul className="analyzer-existing-list">
+                      {result.matchingExistingQuestions.map((q) => (
+                        <li key={q.id} className="analyzer-existing-item">
+                          <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
+                          <span>{q.question}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {result.suggestedNewQuestions.length > 0 && (
+                  <div className="analyzer-section">
+                    <h4 className="analyzer-section-title">
+                      שאלות חדשות מוצעות ({result.suggestedNewQuestions.length})
+                    </h4>
+                    <p className="analyzer-note">
+                      סמני שאלות שתרצי להוסיף למאגר. הן ייוצגו עם תווית "נוצר מתיאור משרה".
+                    </p>
+                    <div className="analyzer-suggestion-list">
+                      {result.suggestedNewQuestions.map((q, i) => (
+                        <label key={i} className="analyzer-suggestion-card">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(i)}
+                            onChange={() => toggleSelected(i)}
+                          />
+                          <div className="analyzer-suggestion-body">
+                            <div className="analyzer-suggestion-meta">
+                              <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
+                              <span className="chip chip--topic chip--sm">{q.topic}</span>
+                            </div>
+                            <p className="analyzer-suggestion-q">{q.question}</p>
+                            <p className="analyzer-suggestion-a">{q.shortAnswer}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+
+                    <div className="analyzer-actions btn-row">
+                      <button
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={handleAddSelected}
+                        disabled={selected.size === 0}
+                      >
+                        הוספת שאלות נבחרות ({selected.size})
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={() =>
+                          setSelected(new Set(result.suggestedNewQuestions.map((_, i) => i)))
+                        }
+                      >
+                        בחירת הכל
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn--secondary"
+                        onClick={() => setSelected(new Set())}
+                      >
+                        ביטול בחירה
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {result.suggestedNewQuestions.length === 0 && (
+                  <p className="analyzer-note">כל השאלות המוצעות כבר קיימות במאגר שלך.</p>
+                )}
+              </div>
+            )}
+
+            {/* AI results */}
+            {aiResults.length > 0 && (
+              <div className="ai-results">
+                <p className="ai-results__title">שאלות שנוצרו בעזרת AI ({aiResults.length})</p>
+                <p className="ai-results__subtitle">
+                  סמני שאלות שתרצי להוסיף למאגר. הן ייוצגו עם תווית "נוצר בעזרת AI".
+                </p>
+
+                <div className="analyzer-suggestion-list">
+                  {aiResults.map((q, i) => (
+                    <AIResultCard
+                      key={i}
+                      q={q}
+                      selected={aiSelected.has(i)}
+                      onToggle={() => toggleAISelected(i)}
+                    />
+                  ))}
+                </div>
+
+                <div className="analyzer-actions btn-row" style={{ marginTop: "12px" }}>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={handleAddAISelected}
+                    disabled={aiSelected.size === 0}
+                  >
+                    הוספת שאלות AI נבחרות ({aiSelected.size})
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => setAISelected(new Set(aiResults.map((_, i) => i)))}
+                  >
+                    בחירת הכל
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => setAISelected(new Set())}
+                  >
+                    ביטול בחירה
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => {
+                      setAIResults([]);
+                      setAISelected(new Set());
+                    }}
+                  >
+                    ביטול תוצאות AI
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Local Q&A Panel ────────────────────────────────────────────────────────
+
+type QAHistoryItem = {
+  userQuery: string;
+  match: ProfessionalQuestion;
+  savedKey: string;
+};
+
+type LocalQAPanelProps = {
+  allQuestions: ProfessionalQuestion[];
+  onSave: (q: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">) => void;
+};
+
+function LocalQAPanel({ allQuestions, onSave }: LocalQAPanelProps) {
+  const [query, setQuery] = useState("");
+  const [currentQuery, setCurrentQuery] = useState("");
+  const [results, setResults] = useState<QAMatch[]>([]);
+  const [searched, setSearched] = useState(false);
+  const [history, setHistory] = useState<QAHistoryItem[]>([]);
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set());
+
+  const { settings: aiSettings } = useAISettings();
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [aiResult, setAiResult] = useState<AIAnswerResult | null>(null);
+  const [aiConsent, setAiConsent] = useState<ConsentPayload | null>(null);
+
+  type AIEditDraft = {
+    question: string;
+    shortAnswer: string;
+    simpleExplanation: string;
+    example: string;
+    category: QuestionCategory;
+    difficulty: QuestionDifficulty;
+    topic: string;
+    whatToMentionRaw: string;
+    commonMistakesRaw: string;
+    tagsRaw: string;
+  };
+  const [editDraft, setEditDraft] = useState<AIEditDraft | null>(null);
+  const [editSaved, setEditSaved] = useState(false);
+
+  function handleSearch() {
+    const q = query.trim();
+    if (!q) return;
+    const matches = searchLocalQA(q, allQuestions);
+    setCurrentQuery(q);
+    setResults(matches);
+    setSearched(true);
+    setAiResult(null);
+    setAiError("");
+    if (matches.length > 0) {
+      setHistory((prev) =>
+        [
+          {
+            userQuery: q,
+            match: matches[0].question,
+            savedKey: `${q}__${matches[0].question.id}`,
+          },
+          ...prev,
+        ].slice(0, 5)
+      );
+    }
+    setQuery("");
+  }
+
+  function handleAiAsk() {
+    const q = query.trim();
+    if (!q) return;
+    const questionText = aiSettings.redactBeforeSend ? redactPersonalInfo(q) : q;
+    setAiConsent({
+      taskLabel: "תשובה לשאלת ראיון בעזרת AI",
+      fields: [{ label: "שאלה", value: questionText }],
+      textToSend: questionText,
+      isRedacted: aiSettings.redactBeforeSend,
+    });
+  }
+
+  async function handleConfirmAi() {
+    if (!aiConsent) return;
+    const questionText = aiConsent.textToSend;
+    setAiConsent(null);
+    setCurrentQuery(questionText);
+    setResults([]);
+    setSearched(false);
+    setAiLoading(true);
+    setAiError("");
+    setAiResult(null);
+    setQuery("");
+    try {
+      const result = await fetchAIAnswer({ question: questionText });
+      setAiResult(result);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "שגיאה לא ידועה");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function handleOpenEdit() {
+    if (!aiResult) return;
+    setEditDraft({
+      question: currentQuery,
+      shortAnswer: aiResult.answer,
+      simpleExplanation: aiResult.answer,
+      example: aiResult.example,
+      category: (aiResult.suggestedCategory as QuestionCategory) ?? "General",
+      difficulty: aiResult.suggestedDifficulty ?? "intermediate",
+      topic: aiResult.suggestedTopic ?? "",
+      whatToMentionRaw: aiResult.keyPoints.join("\n"),
+      commonMistakesRaw: aiResult.commonMistakes.join("\n"),
+      tagsRaw: aiResult.relatedTopics.join(", "),
+    });
+    setEditSaved(false);
+  }
+
+  function handleSaveEdit() {
+    if (!editDraft) return;
+    onSave({
+      category: editDraft.category,
+      topic: editDraft.topic,
+      difficulty: editDraft.difficulty,
+      question: editDraft.question,
+      shortAnswer: editDraft.shortAnswer,
+      simpleExplanation: editDraft.simpleExplanation,
+      example: editDraft.example,
+      whatToMention: editDraft.whatToMentionRaw.split("\n").map((s) => s.trim()).filter(Boolean),
+      commonMistakes: editDraft.commonMistakesRaw.split("\n").map((s) => s.trim()).filter(Boolean),
+      tags: editDraft.tagsRaw.split(",").map((s) => s.trim()).filter(Boolean),
+    });
+    setEditSaved(true);
+    setEditDraft(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") handleSearch();
+  }
+
+  function handleSave(userQuery: string, match: ProfessionalQuestion) {
+    const key = `${userQuery}__${match.id}`;
+    onSave({
+      category: match.category,
+      topic: match.topic,
+      difficulty: match.difficulty,
+      question: userQuery,
+      shortAnswer: match.shortAnswer,
+      simpleExplanation: match.simpleExplanation,
+      example: match.example,
+      whatToMention: match.whatToMention,
+      commonMistakes: match.commonMistakes,
+      tags: match.tags,
+    });
+    setSavedKeys((prev) => new Set([...prev, key]));
+  }
+
+  return (
+    <div className="local-qa-panel card">
+      <div className="local-qa-panel__header">
+        <h3 className="local-qa-panel__title">שאל שאלה</h3>
+        <p className="local-qa-panel__subtitle">
+          {aiSettings.aiEnabled
+            ? "חיפוש מקומי במאגר · AI חיצוני זמין"
+            : "חיפוש מקומי במאגר · אין AI חיצוני"}
+        </p>
+      </div>
+      <div className="local-qa-body">
+
+          <div className="local-qa-input-row">
+            <input
+              type="text"
+              className="form-input local-qa-input"
+              placeholder="לדוגמה: מה זה gradient descent? מה ההבדל בין SQL joins?"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              dir="rtl"
             />
-          </div>
-
-          <div className="btn-row">
             <button
               type="button"
               className="btn btn--primary"
-              onClick={handleAnalyze}
-              disabled={!jobDesc.trim()}
+              onClick={handleSearch}
+              disabled={!query.trim()}
             >
-              ניתוח תיאור משרה
+              שאל
             </button>
-            {(result || jobDesc) && (
-              <button type="button" className="btn btn--secondary" onClick={handleClear}>
-                ניקוי ניתוח
+            {aiSettings.aiEnabled && (
+              <button
+                type="button"
+                className="btn btn--ai"
+                onClick={handleAiAsk}
+                disabled={!query.trim() || aiLoading}
+                title="קבל תשובה מ-AI"
+              >
+                ✨ AI
               </button>
             )}
           </div>
 
-          {addedMsg && (
-            <p className="pq-added-msg" role="status">
-              השאלות נוספו למאגר ונשמרו מקומית.
-            </p>
+          {aiLoading && (
+            <div className="ai-qa-thinking" role="status" aria-live="polite">
+              <span className="ai-qa-thinking__dots">
+                <span /><span /><span />
+              </span>
+              <span>AI חושב…</span>
+            </div>
           )}
 
-          {result && (
-            <div className="analyzer-results">
-              <div className="analyzer-category-chips">
-                <span className="analyzer-label">קטגוריות שזוהו:</span>
-                {result.detectedCategories.map((cat) => (
-                  <span key={cat} className="chip chip--category">
-                    {categoryLabels[cat]}
-                  </span>
-                ))}
-              </div>
+          {!aiLoading && aiError && (
+            <p className="ai-error-msg">{aiError}</p>
+          )}
 
-              {result.matchingExistingQuestions.length > 0 && (
-                <div className="analyzer-section">
-                  <h4 className="analyzer-section-title">
-                    שאלות קיימות במאגר שרלוונטיות למשרה ({result.matchingExistingQuestions.length})
-                  </h4>
-                  <ul className="analyzer-existing-list">
-                    {result.matchingExistingQuestions.map((q) => (
-                      <li key={q.id} className="analyzer-existing-item">
-                        <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
-                        <span>{q.question}</span>
-                      </li>
-                    ))}
+          {aiResult && (
+            <div className="ai-qa-result">
+              <p className="ai-qa-result__label">תשובת AI לשאלה: <strong>{currentQuery}</strong></p>
+              <p className="ai-qa-result__answer">{aiResult.answer}</p>
+              {aiResult.keyPoints.length > 0 && (
+                <div className="ai-qa-result__section">
+                  <p className="ai-qa-result__section-title">נקודות מפתח:</p>
+                  <ul className="ai-qa-result__list">
+                    {aiResult.keyPoints.map((kp, i) => <li key={i}>{kp}</li>)}
                   </ul>
                 </div>
               )}
-
-              {result.suggestedNewQuestions.length > 0 && (
-                <div className="analyzer-section">
-                  <h4 className="analyzer-section-title">
-                    שאלות חדשות מוצעות ({result.suggestedNewQuestions.length})
-                  </h4>
-                  <p className="analyzer-note">
-                    סמני שאלות שתרצי להוסיף למאגר. הן ייוצגו עם תווית "נוצר מתיאור משרה".
-                  </p>
-                  <div className="analyzer-suggestion-list">
-                    {result.suggestedNewQuestions.map((q, i) => (
-                      <label key={i} className="analyzer-suggestion-card">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(i)}
-                          onChange={() => toggleSelected(i)}
-                        />
-                        <div className="analyzer-suggestion-body">
-                          <div className="analyzer-suggestion-meta">
-                            <span className="chip chip--category chip--sm">{categoryLabels[q.category]}</span>
-                            <span className="chip chip--topic chip--sm">{q.topic}</span>
-                          </div>
-                          <p className="analyzer-suggestion-q">{q.question}</p>
-                          <p className="analyzer-suggestion-a">{q.shortAnswer}</p>
-                        </div>
-                      </label>
-                    ))}
-                  </div>
-
-                  <div className="analyzer-actions btn-row">
-                    <button
-                      type="button"
-                      className="btn btn--primary"
-                      onClick={handleAddSelected}
-                      disabled={selected.size === 0}
-                    >
-                      הוספת שאלות נבחרות ({selected.size})
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      onClick={() =>
-                        setSelected(new Set(result.suggestedNewQuestions.map((_, i) => i)))
-                      }
-                    >
-                      בחירת הכל
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn--secondary"
-                      onClick={() => setSelected(new Set())}
-                    >
-                      ביטול בחירה
-                    </button>
-                  </div>
+              {aiResult.example && (
+                <div className="ai-qa-result__section">
+                  <p className="ai-qa-result__section-title">דוגמה:</p>
+                  <p className="ai-qa-result__example">{aiResult.example}</p>
                 </div>
               )}
+              {aiResult.relatedTopics.length > 0 && (
+                <div className="ai-qa-result__chips">
+                  <span className="ai-qa-result__section-title">נושאים קשורים: </span>
+                  {aiResult.relatedTopics.map((t, i) => (
+                    <span key={i} className="chip chip--category chip--sm">{t}</span>
+                  ))}
+                </div>
+              )}
+              <div className="ai-qa-result__actions">
+                {editSaved ? (
+                  <span className="local-qa-saved-badge">✓ נשמר במאגר</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm"
+                    onClick={handleOpenEdit}
+                  >
+                    ✏️ ערוך ושמור למאגר
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
-              {result.suggestedNewQuestions.length === 0 && (
-                <p className="analyzer-note">כל השאלות המוצעות כבר קיימות במאגר שלך.</p>
+          {editDraft && (
+            <div className="ai-qa-edit-form">
+              <p className="ai-qa-edit-form__title">ערוך לפני שמירה</p>
+
+              <div className="form-group">
+                <label className="form-label">שאלה</label>
+                <textarea
+                  className="form-input form-textarea"
+                  rows={2}
+                  value={editDraft.question}
+                  onChange={(e) => setEditDraft({ ...editDraft, question: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">תשובה קצרה</label>
+                <textarea
+                  className="form-input form-textarea"
+                  rows={3}
+                  value={editDraft.shortAnswer}
+                  onChange={(e) => setEditDraft({ ...editDraft, shortAnswer: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">דוגמה</label>
+                <textarea
+                  className="form-input form-textarea"
+                  rows={2}
+                  value={editDraft.example}
+                  onChange={(e) => setEditDraft({ ...editDraft, example: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="ai-qa-edit-form__row">
+                <div className="form-group">
+                  <label className="form-label">קטגוריה</label>
+                  <select
+                    className="form-input"
+                    value={editDraft.category}
+                    onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value as QuestionCategory })}
+                  >
+                    {ALL_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">רמה</label>
+                  <select
+                    className="form-input"
+                    value={editDraft.difficulty}
+                    onChange={(e) => setEditDraft({ ...editDraft, difficulty: e.target.value as QuestionDifficulty })}
+                  >
+                    {(["basic", "intermediate", "advanced"] as QuestionDifficulty[]).map((d) => (
+                      <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">נושא</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editDraft.topic}
+                  onChange={(e) => setEditDraft({ ...editDraft, topic: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">נקודות לציין (שורה לכל נקודה)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  rows={3}
+                  value={editDraft.whatToMentionRaw}
+                  onChange={(e) => setEditDraft({ ...editDraft, whatToMentionRaw: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">טעויות נפוצות (שורה לכל טעות)</label>
+                <textarea
+                  className="form-input form-textarea"
+                  rows={2}
+                  value={editDraft.commonMistakesRaw}
+                  onChange={(e) => setEditDraft({ ...editDraft, commonMistakesRaw: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">תגיות (מופרדות בפסיק)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editDraft.tagsRaw}
+                  onChange={(e) => setEditDraft({ ...editDraft, tagsRaw: e.target.value })}
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="btn-row">
+                <button
+                  type="button"
+                  className="btn btn--primary btn--sm"
+                  onClick={handleSaveEdit}
+                  disabled={!editDraft.question.trim() || !editDraft.shortAnswer.trim()}
+                >
+                  שמור למאגר שאלות
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setEditDraft(null)}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          )}
+
+          {searched && results.length === 0 && !aiResult && (
+            <p className="local-qa-no-result">
+              לא נמצאה שאלה מתאימה — נסה מילות מפתח אחרות
+              {aiSettings.aiEnabled ? " או לחץ ✨ AI לתשובה חכמה." : "."}
+            </p>
+          )}
+
+          {results.length > 0 && (
+            <div className="local-qa-results">
+              <div className="local-qa-result local-qa-result--top">
+                <div className="local-qa-result-meta">
+                  <span className="chip chip--category chip--sm">
+                    {CATEGORY_LABELS[results[0].question.category]}
+                  </span>
+                  <span className="chip chip--topic chip--sm">
+                    {results[0].question.topic}
+                  </span>
+                  <span
+                    className={`chip chip--difficulty chip--difficulty-${results[0].question.difficulty} chip--sm`}
+                  >
+                    {DIFFICULTY_LABELS[results[0].question.difficulty]}
+                  </span>
+                </div>
+                <p className="local-qa-matched-q">{results[0].question.question}</p>
+                <p className="local-qa-answer">{results[0].question.shortAnswer}</p>
+                {savedKeys.has(`${currentQuery}__${results[0].question.id}`) ? (
+                  <span className="local-qa-saved-badge">✓ נשמר במאגר</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn btn--secondary btn--sm local-qa-save-btn"
+                    onClick={() => handleSave(currentQuery, results[0].question)}
+                  >
+                    שמור כשאלה
+                  </button>
+                )}
+              </div>
+
+              {results.length > 1 && (
+                <details className="local-qa-more">
+                  <summary className="local-qa-more-toggle">
+                    {results.length - 1} תוצאות נוספות
+                  </summary>
+                  <div className="local-qa-more-list">
+                    {results.slice(1).map((m) => {
+                      const key = `${currentQuery}__${m.question.id}`;
+                      return (
+                        <div key={m.question.id} className="local-qa-result">
+                          <div className="local-qa-result-meta">
+                            <span className="chip chip--category chip--sm">
+                              {CATEGORY_LABELS[m.question.category]}
+                            </span>
+                            <span className="chip chip--topic chip--sm">
+                              {m.question.topic}
+                            </span>
+                          </div>
+                          <p className="local-qa-matched-q">{m.question.question}</p>
+                          <p className="local-qa-answer">{m.question.shortAnswer}</p>
+                          {savedKeys.has(key) ? (
+                            <span className="local-qa-saved-badge">✓ נשמר</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn--secondary btn--sm local-qa-save-btn"
+                              onClick={() => handleSave(currentQuery, m.question)}
+                            >
+                              שמור כשאלה
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
               )}
             </div>
           )}
-        </div>
+
+          {history.length > 0 && (
+            <div className="local-qa-history">
+              <p className="local-qa-history-title">היסטוריית שאלות — הסשן הנוכחי</p>
+              {history.map((item, i) => (
+                <div key={i} className="local-qa-history-item">
+                  <div className="local-qa-history-text">
+                    <span className="local-qa-history-q">ש: {item.userQuery}</span>
+                    <span className="local-qa-history-a">ת: {item.match.shortAnswer}</span>
+                  </div>
+                  {savedKeys.has(item.savedKey) ? (
+                    <span className="local-qa-saved-badge">✓ נשמר</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      onClick={() => handleSave(item.userQuery, item.match)}
+                    >
+                      שמור
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+      </div>
+
+      {aiConsent && (
+        <AIConsentModal
+          payload={aiConsent}
+          onConfirm={handleConfirmAi}
+          onCancel={() => setAiConsent(null)}
+        />
       )}
     </div>
   );
@@ -831,6 +1621,7 @@ const BLANK_FORM = {
 function ProfessionalInterviewPage() {
   const { questions, addQuestion, addQuestions, deleteUserQuestion } = useProfessionalQuestions();
   const { progress, recordResult, resetProgress } = usePracticeProgress();
+  const { settings: aiSettings } = useAISettings();
 
   const [practiceMode, setPracticeMode] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("compact");
@@ -955,6 +1746,8 @@ function ProfessionalInterviewPage() {
         </p>
       </div>
 
+      <div className="pq-layout">
+      <div className="pq-main">
       <div className="pq-filters card">
         {/* View mode selector */}
         <div className="view-mode-selector" role="group" aria-label="צורת הצגה">
@@ -1239,7 +2032,10 @@ function ProfessionalInterviewPage() {
         <JobDescriptionAnalyzer
           allQuestions={questions}
           onAddQuestions={(qs) => addQuestions(qs, "job-description")}
+          onAddAIQuestions={(qs) => addQuestions(qs, "ai")}
           categoryLabels={CATEGORY_LABELS}
+          aiEnabled={aiSettings.aiEnabled}
+          redactBeforeSend={aiSettings.redactBeforeSend}
         />
       )}
 
@@ -1321,6 +2117,7 @@ function ProfessionalInterviewPage() {
                 <option value="demo">דמו</option>
                 <option value="user">נוסף ידנית</option>
                 <option value="job-description">נוצר מתיאור משרה</option>
+                <option value="ai">נוצר בעזרת AI</option>
               </select>
               <input
                 type="search"
@@ -1348,7 +2145,7 @@ function ProfessionalInterviewPage() {
             <CompactCard
               key={q.id}
               q={q}
-              onDelete={q.source === "user" || q.source === "job-description" ? deleteUserQuestion : undefined}
+              onDelete={q.source !== "demo" ? deleteUserQuestion : undefined}
             />
           ))}
         </div>
@@ -1358,11 +2155,17 @@ function ProfessionalInterviewPage() {
             <QuestionCard
               key={q.id}
               q={q}
-              onDelete={q.source === "user" || q.source === "job-description" ? deleteUserQuestion : undefined}
+              onDelete={q.source !== "demo" ? deleteUserQuestion : undefined}
             />
           ))}
         </div>
       )}
+      </div>{/* /pq-main */}
+
+      <div className="pq-sidebar">
+        <LocalQAPanel allQuestions={questions} onSave={addQuestion} />
+      </div>
+      </div>{/* /pq-layout */}
     </div>
   );
 }

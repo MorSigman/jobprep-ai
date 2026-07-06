@@ -9,10 +9,25 @@ import {
   isProfileEmpty,
   type CvTailoringSuggestions,
 } from "../lib/cvTailoring";
+import { useAISettings } from "../lib/useAISettings";
+import { redactPersonalInfo } from "../lib/redactPersonalInfo";
+import {
+  fetchAICvTailoring,
+  fetchAIInterviewPrep,
+  fetchAIJobFullAnalysis,
+  type AICvTailoringResult,
+  type AIInterviewPrepResult,
+  type AIRawQuestion,
+  type AIPersonalQuestion,
+  type AIJobFullAnalysisResult,
+} from "../lib/aiClient";
+import { AIConsentModal } from "../components/AIConsentModal";
+import type { ConsentPayload } from "../components/AIConsentModal";
 import { demoProfessionalQuestions } from "../data/professionalQuestions";
 import { getRecommendedQuestionsForJob } from "../lib/recommendedQuestions";
 import { usePracticeProgress, type ProgressMap } from "../hooks/usePracticeProgress";
 import { CATEGORY_LABELS, DIFFICULTY_LABELS } from "../lib/questionLabels";
+import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -183,20 +198,20 @@ function RecommendedQuestionCard({ q }: RQCardProps) {
       <div className="recommended-question-actions">
         <button
           type="button"
-          className="pq-expandable__btn"
+          className="btn btn--sm btn--secondary"
           aria-expanded={showExplanation}
           onClick={() => setShowExplanation((v) => !v)}
         >
-          {showExplanation ? "- הרחבה" : "+ הרחבה"}
+          {showExplanation ? "− הרחבה" : "+ הרחבה"}
         </button>
         {q.example && (
           <button
             type="button"
-            className="pq-expandable__btn"
+            className="btn btn--sm btn--secondary"
             aria-expanded={showExample}
             onClick={() => setShowExample((v) => !v)}
           >
-            {showExample ? "- דוגמה" : "+ דוגמה"}
+            {showExample ? "− דוגמה" : "+ דוגמה"}
           </button>
         )}
       </div>
@@ -496,12 +511,355 @@ function CvTailoringResults({ suggestions }: { suggestions: CvTailoringSuggestio
   );
 }
 
+function buildProfileSummaryForAI(profile: UserProfile): string {
+  return [
+    profile.targetRoles && `תפקידים: ${profile.targetRoles}`,
+    profile.skills && `כישורים: ${profile.skills}`,
+    profile.technologies && `טכנולוגיות: ${profile.technologies}`,
+    profile.tools && `כלים: ${profile.tools}`,
+    profile.projectsSummary && `פרויקטים: ${profile.projectsSummary}`,
+    profile.experienceSummary && `ניסיון: ${profile.experienceSummary}`,
+    profile.educationSummary && `השכלה: ${profile.educationSummary}`,
+    profile.strengths && `חוזקות: ${profile.strengths}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function AICvTailoringAIResults({ result }: { result: AICvTailoringResult }) {
+  return (
+    <div className="cv-tailoring-results" style={{ marginTop: "12px" }}>
+      {result.matchingStrengths.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה כבר מתאים</p>
+          <ul className="cv-tailoring-list">
+            {result.matchingStrengths.map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      {result.missingKeywords.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה חסר</p>
+          <div className="chip-row">
+            {result.missingKeywords.map((kw, i) => (
+              <span key={i} className="chip chip--demo">{kw}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {result.recommendedHighlights.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">מה כדאי להבליט</p>
+          <ul className="cv-tailoring-list">
+            {result.recommendedHighlights.map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      {result.suggestedPhrases.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">ניסוחים מוצעים</p>
+          <ul className="cv-tailoring-phrases">
+            {result.suggestedPhrases.map((phrase, i) => <li key={i}>{phrase}</li>)}
+          </ul>
+        </div>
+      )}
+      {result.projectsToMention.length > 0 && (
+        <div>
+          <p className="cv-tailoring-section__title">פרויקטים שכדאי להזכיר</p>
+          <ul className="cv-tailoring-list">
+            {result.projectsToMention.map((item, i) => <li key={i}>{item}</li>)}
+          </ul>
+        </div>
+      )}
+      <div>
+        <p className="cv-tailoring-section__title">אזהרות — לא להמציא</p>
+        <ul className="cv-tailoring-warnings">
+          {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function AIInterviewPrepResults({ result }: { result: AIInterviewPrepResult }) {
+  return (
+    <div className="ai-prep-results">
+      {result.personalPitch && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">פיץ׳ אישי מוצע</p>
+          <p className="ai-prep-pitch-box">{result.personalPitch}</p>
+        </div>
+      )}
+      {result.likelyQuestions.length > 0 && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">שאלות צפויות בראיון</p>
+          <ol className="ai-prep-list ai-prep-list--questions">
+            {result.likelyQuestions.map((q, i) => <li key={i}>{q}</li>)}
+          </ol>
+        </div>
+      )}
+      {result.topicsToReview.length > 0 && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">נושאים לחזור עליהם</p>
+          <div className="chip-row">
+            {result.topicsToReview.map((t, i) => (
+              <span key={i} className="chip chip--category">{t}</span>
+            ))}
+          </div>
+        </div>
+      )}
+      {result.projectsToPrepare.length > 0 && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">פרויקטים להכין כדוגמאות</p>
+          <ul className="ai-prep-list">
+            {result.projectsToPrepare.map((p, i) => <li key={i}>{p}</li>)}
+          </ul>
+        </div>
+      )}
+      {result.questionsToAskInterviewer.length > 0 && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">שאלות לשאול את המראיינים</p>
+          <ul className="ai-prep-list ai-prep-list--accent">
+            {result.questionsToAskInterviewer.map((q, i) => <li key={i}>{q}</li>)}
+          </ul>
+        </div>
+      )}
+      {result.weakSpotsToPrepare.length > 0 && (
+        <div className="ai-prep-section">
+          <p className="ai-prep-section__label">נקודות לחזרה מוכנה</p>
+          <ul className="ai-prep-list ai-prep-list--warning">
+            {result.weakSpotsToPrepare.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type AIProQCardProps = {
+  q: AIRawQuestion;
+  added: boolean;
+  isDuplicate: boolean;
+  onAdd: () => void;
+};
+
+function AIProQCard({ q, added, isDuplicate, onAdd }: AIProQCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="job-ai-q-card">
+      <div className="job-ai-q-card__meta">
+        <span className="chip chip--category">{CATEGORY_LABELS[q.category as keyof typeof CATEGORY_LABELS] ?? q.category}</span>
+        <span className={`chip chip--difficulty chip--difficulty-${q.difficulty} chip--sm`}>{DIFFICULTY_LABELS[q.difficulty]}</span>
+        <span className="chip chip--topic chip--sm">{q.topic}</span>
+      </div>
+      <p className="job-ai-q-card__question">{q.question}</p>
+      {expanded && (
+        <div className="job-ai-q-card__details">
+          <p className="job-ai-q-card__answer">{q.shortAnswer}</p>
+          {q.whatToMention.length > 0 && (
+            <div>
+              <strong className="job-ai-q-card__sub">מה כדאי להזכיר:</strong>
+              <ul className="job-ai-q-card__list">
+                {q.whatToMention.map((item, i) => <li key={i}>{item}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="job-ai-q-card__actions">
+        <button type="button" className="btn btn--sm btn--secondary" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "− פחות" : "+ תשובה"}
+        </button>
+        <button
+          type="button"
+          className={`btn btn--sm ${added || isDuplicate ? "btn--secondary" : "btn--primary"}`}
+          onClick={onAdd}
+          disabled={added || isDuplicate}
+        >
+          {isDuplicate ? "כבר במאגר" : added ? "✓ נוסף למאגר" : "+ הוסף למאגר"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type AIPerQCardProps = {
+  q: AIPersonalQuestion;
+  added: boolean;
+  isDuplicate: boolean;
+  onAdd: () => void;
+};
+
+function AIPerQCard({ q, added, isDuplicate, onAdd }: AIPerQCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const typeLabel: Record<string, string> = {
+    behavioral: "התנהגותית",
+    motivational: "מוטיבציה",
+    situational: "מצבית",
+    personal: "אישית",
+  };
+  return (
+    <div className="job-ai-q-card job-ai-q-card--personal">
+      <div className="job-ai-q-card__meta">
+        <span className="chip chip--category">שאלה אישית</span>
+        <span className="chip chip--topic chip--sm">{typeLabel[q.type] ?? q.type}</span>
+      </div>
+      <p className="job-ai-q-card__question">{q.question}</p>
+      {expanded && (
+        <div className="job-ai-q-card__details">
+          <strong className="job-ai-q-card__sub">הצעת תשובה:</strong>
+          <p className="job-ai-q-card__answer">{q.suggestedAnswer}</p>
+          {q.tips.length > 0 && (
+            <div>
+              <strong className="job-ai-q-card__sub">מה להדגיש:</strong>
+              <ul className="job-ai-q-card__list">
+                {q.tips.map((t, i) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+          {q.followUpQuestions.length > 0 && (
+            <div>
+              <strong className="job-ai-q-card__sub">שאלות המשך אפשריות:</strong>
+              <ul className="job-ai-q-card__list">
+                {q.followUpQuestions.map((fq, i) => <li key={i}>{fq}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="job-ai-q-card__actions">
+        <button type="button" className="btn btn--sm btn--secondary" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? "− פחות" : "+ תשובה מוצעת"}
+        </button>
+        <button
+          type="button"
+          className={`btn btn--sm ${added || isDuplicate ? "btn--secondary" : "btn--primary"}`}
+          onClick={onAdd}
+          disabled={added || isDuplicate}
+        >
+          {isDuplicate ? "כבר במאגר" : added ? "✓ נוסף למאגר" : "+ הוסף למאגר"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type PrepSuggestionCardProps = {
+  title: string;
+  value: string;
+  saved: boolean;
+  onSave: () => void;
+};
+
+function PrepSuggestionCard({ title, value, saved, onSave }: PrepSuggestionCardProps) {
+  if (!value.trim()) return null;
+  return (
+    <div className="job-ai-prep-suggestion">
+      <div className="job-ai-prep-suggestion__header">
+        <strong className="job-ai-prep-suggestion__title">{title}</strong>
+        <button
+          type="button"
+          className={`btn btn--sm ${saved ? "btn--secondary" : "btn--primary"}`}
+          onClick={onSave}
+          disabled={saved}
+        >
+          {saved ? "✓ נשמר" : "שמור לסעיף"}
+        </button>
+      </div>
+      <p className="job-ai-prep-suggestion__text">{value}</p>
+    </div>
+  );
+}
+
+function loadInterviewPrepCache(jobId: string): AIInterviewPrepResult | null {
+  try {
+    const raw = localStorage.getItem(`jobprep-ai-interview-prep-${jobId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as AIInterviewPrepResult;
+  } catch {
+    return null;
+  }
+}
+
+function saveInterviewPrepCache(jobId: string, result: AIInterviewPrepResult): void {
+  try {
+    localStorage.setItem(`jobprep-ai-interview-prep-${jobId}`, JSON.stringify(result));
+  } catch {
+    /* ignore */
+  }
+}
+
+type FullAnalysisCache = {
+  result: AIJobFullAnalysisResult;
+  addedProQs: number[];
+  addedPerQs: number[];
+  savedPrepFields: string[];
+};
+
+function loadFullAnalysisCache(jobId: string): FullAnalysisCache | null {
+  try {
+    const raw = localStorage.getItem(`jobprep-ai-full-result-${jobId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as FullAnalysisCache;
+  } catch {
+    return null;
+  }
+}
+
+function saveFullAnalysisCacheData(jobId: string, data: FullAnalysisCache): void {
+  try {
+    localStorage.setItem(`jobprep-ai-full-result-${jobId}`, JSON.stringify(data));
+  } catch {
+    /* ignore storage errors */
+  }
+}
+
 function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }: Props) {
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [suggestions, setSuggestions] = useState<CvTailoringSuggestions | null>(null);
   const [jobPracticeMode, setJobPracticeMode] = useState(false);
   const { progress, recordResult } = usePracticeProgress();
+  const { settings: aiSettings } = useAISettings();
+  const { questions: allQuestions, addQuestions } = useProfessionalQuestions();
+
+  const [aiCvLoading, setAiCvLoading] = useState(false);
+  const [aiCvError, setAiCvError] = useState("");
+  const [aiCvResult, setAiCvResult] = useState<AICvTailoringResult | null>(null);
+  const [aiCvConsent, setAiCvConsent] = useState<ConsentPayload | null>(null);
+
+  const [aiPrepLoading, setAiPrepLoading] = useState(false);
+  const [aiPrepError, setAiPrepError] = useState("");
+  const [aiPrepResult, setAiPrepResult] = useState<AIInterviewPrepResult | null>(
+    () => loadInterviewPrepCache(job.id)
+  );
+  const [aiPrepConsent, setAiPrepConsent] = useState<ConsentPayload | null>(null);
+
+  const [companyInfo, setCompanyInfo] = useState("");
+  const [showCompanyInput, setShowCompanyInput] = useState(false);
+  const [aiFullLoading, setAiFullLoading] = useState(false);
+  const [aiFullError, setAiFullError] = useState("");
+  const [aiFullResult, setAiFullResult] = useState<AIJobFullAnalysisResult | null>(() => {
+    const c = loadFullAnalysisCache(job.id);
+    return c ? c.result : null;
+  });
+  const [aiFullConsent, setAiFullConsent] = useState<ConsentPayload | null>(null);
+  const [addedProQs, setAddedProQs] = useState<Set<number>>(() => {
+    const c = loadFullAnalysisCache(job.id);
+    return c ? new Set(c.addedProQs) : new Set();
+  });
+  const [addedPerQs, setAddedPerQs] = useState<Set<number>>(() => {
+    const c = loadFullAnalysisCache(job.id);
+    return c ? new Set(c.addedPerQs) : new Set();
+  });
+  const [savedPrepFields, setSavedPrepFields] = useState<Set<string>>(() => {
+    const c = loadFullAnalysisCache(job.id);
+    return c ? new Set(c.savedPrepFields) : new Set();
+  });
+  const [duplicateProQs, setDuplicateProQs] = useState<Set<number>>(new Set());
+  const [duplicatePerQs, setDuplicatePerQs] = useState<Set<number>>(new Set());
+  const [showFullResults, setShowFullResults] = useState(true);
+  const [showPrepResults, setShowPrepResults] = useState(true);
 
   const recommendedQuestions = useMemo(
     () => getRecommendedQuestionsForJob(job, demoProfessionalQuestions),
@@ -510,6 +868,30 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
 
   useEffect(() => {
     setSuggestions(null);
+    setAiCvResult(null);
+    setAiCvError("");
+    setAiPrepError("");
+    setAiFullError("");
+    setShowFullResults(true);
+    setShowPrepResults(true);
+    setDuplicateProQs(new Set());
+    setDuplicatePerQs(new Set());
+
+    const prepCache = loadInterviewPrepCache(job.id);
+    setAiPrepResult(prepCache ?? null);
+
+    const fullCache = loadFullAnalysisCache(job.id);
+    if (fullCache) {
+      setAiFullResult(fullCache.result);
+      setAddedProQs(new Set(fullCache.addedProQs));
+      setAddedPerQs(new Set(fullCache.addedPerQs));
+      setSavedPrepFields(new Set(fullCache.savedPrepFields));
+    } else {
+      setAiFullResult(null);
+      setAddedProQs(new Set());
+      setAddedPerQs(new Set());
+      setSavedPrepFields(new Set());
+    }
   }, [job.id]);
 
   function handleSave(updatedJob: JobApplication) {
@@ -523,6 +905,259 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
 
   function savePrep(field: PrepField, value: string) {
     onUpdate({ ...job, [field]: value, updatedAt: toLocalDateStr() } as JobApplication);
+  }
+
+  function buildAIContext() {
+    const desc = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.jobDescription)
+      : job.jobDescription;
+    const title = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.roleTitle)
+      : job.roleTitle;
+    const profileText = profile ? buildProfileSummaryForAI(profile) : "";
+    const profileToSend = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(profileText)
+      : profileText;
+    return { desc, title, profileToSend };
+  }
+
+  function handleAiCvClick() {
+    if (!aiSettings.aiEnabled) return;
+    const { desc, title, profileToSend } = buildAIContext();
+    setAiCvConsent({
+      taskLabel: "התאמת קורות חיים בעזרת AI",
+      fields: [
+        { label: "כותרת משרה", value: title || "לא צוין" },
+        { label: "תיאור משרה", value: desc.length > 80 ? desc.slice(0, 80) + "…" : desc },
+        { label: "פרופיל", value: profileToSend.length > 80 ? profileToSend.slice(0, 80) + "…" : profileToSend },
+      ],
+      textToSend: `${desc}\n\nפרופיל:\n${profileToSend}`,
+      isRedacted: aiSettings.redactBeforeSend,
+    });
+  }
+
+  async function handleConfirmAiCv() {
+    if (!aiCvConsent) return;
+    const { desc, title, profileToSend } = buildAIContext();
+    setAiCvConsent(null);
+    setAiCvLoading(true);
+    setAiCvError("");
+    setAiCvResult(null);
+    try {
+      const result = await fetchAICvTailoring({
+        jobTitle: title,
+        jobDescription: desc,
+        profileSummary: profileToSend,
+      });
+      setAiCvResult(result);
+    } catch (err) {
+      setAiCvError(err instanceof Error ? err.message : "שגיאה לא ידועה");
+    } finally {
+      setAiCvLoading(false);
+    }
+  }
+
+  function handleAiPrepClick() {
+    if (!aiSettings.aiEnabled) return;
+    const { desc, title, profileToSend } = buildAIContext();
+    setAiPrepConsent({
+      taskLabel: "הכנה לראיון בעזרת AI",
+      fields: [
+        { label: "כותרת משרה", value: title || "לא צוין" },
+        { label: "תיאור משרה", value: desc.length > 80 ? desc.slice(0, 80) + "…" : desc },
+        { label: "פרופיל", value: profileToSend.length > 80 ? profileToSend.slice(0, 80) + "…" : profileToSend },
+      ],
+      textToSend: `${desc}\n\nפרופיל:\n${profileToSend}`,
+      isRedacted: aiSettings.redactBeforeSend,
+    });
+  }
+
+  async function handleConfirmAiPrep() {
+    if (!aiPrepConsent) return;
+    const { desc, title, profileToSend } = buildAIContext();
+    setAiPrepConsent(null);
+    setAiPrepLoading(true);
+    setAiPrepError("");
+    setAiPrepResult(null);
+    try {
+      const result = await fetchAIInterviewPrep({
+        jobTitle: title,
+        jobDescription: desc,
+        profileSummary: profileToSend,
+      });
+      setAiPrepResult(result);
+      setShowPrepResults(true);
+      saveInterviewPrepCache(job.id, result);
+    } catch (err) {
+      setAiPrepError(err instanceof Error ? err.message : "שגיאה לא ידועה");
+    } finally {
+      setAiPrepLoading(false);
+    }
+  }
+
+  function handleAiFullAnalysisClick() {
+    if (!aiSettings.aiEnabled) return;
+    const desc = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.jobDescription)
+      : job.jobDescription;
+    const title = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.roleTitle)
+      : job.roleTitle;
+    const profileText = profile ? buildProfileSummaryForAI(profile) : "";
+    const profileToSend = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(profileText)
+      : profileText;
+    const companyToSend = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(companyInfo)
+      : companyInfo;
+
+    const fields: ConsentPayload["fields"] = [
+      { label: "כותרת משרה", value: title || "לא צוין" },
+      { label: "תיאור משרה", value: desc.length > 80 ? desc.slice(0, 80) + "…" : desc },
+    ];
+    if (companyToSend.trim()) {
+      fields.push({ label: "מידע על חברה", value: companyToSend.length > 80 ? companyToSend.slice(0, 80) + "…" : companyToSend });
+    }
+    if (profileToSend.trim()) {
+      fields.push({ label: "פרופיל", value: profileToSend.length > 80 ? profileToSend.slice(0, 80) + "…" : profileToSend });
+    }
+
+    setAiFullConsent({
+      taskLabel: "ניתוח AI מקיף — שאלות ראיון מותאמות",
+      fields,
+      textToSend: [desc, companyToSend && `\nחברה:\n${companyToSend}`, profileToSend && `\nפרופיל:\n${profileToSend}`].filter(Boolean).join(""),
+      isRedacted: aiSettings.redactBeforeSend,
+    });
+  }
+
+  async function handleConfirmAiFullAnalysis() {
+    if (!aiFullConsent) return;
+    const desc = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.jobDescription)
+      : job.jobDescription;
+    const title = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(job.roleTitle)
+      : job.roleTitle;
+    const profileText = profile ? buildProfileSummaryForAI(profile) : "";
+    const profileToSend = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(profileText)
+      : profileText;
+    const companyToSend = aiSettings.redactBeforeSend
+      ? redactPersonalInfo(companyInfo)
+      : companyInfo;
+
+    setAiFullConsent(null);
+    setAiFullLoading(true);
+    setAiFullError("");
+    setAiFullResult(null);
+    setAddedProQs(new Set());
+    setAddedPerQs(new Set());
+    setSavedPrepFields(new Set());
+
+    try {
+      const result = await fetchAIJobFullAnalysis({
+        jobTitle: title,
+        jobDescription: desc,
+        companyInfo: companyToSend,
+        profileSummary: profileToSend,
+      });
+      setAiFullResult(result);
+      setShowFullResults(true);
+      saveFullAnalysisCacheData(job.id, {
+        result,
+        addedProQs: [],
+        addedPerQs: [],
+        savedPrepFields: [],
+      });
+    } catch (err) {
+      setAiFullError(err instanceof Error ? err.message : "שגיאה לא ידועה");
+    } finally {
+      setAiFullLoading(false);
+    }
+  }
+
+  function handleAddProfessionalQ(q: AIRawQuestion, index: number) {
+    const alreadyExists = allQuestions.some(
+      (existing) => existing.question.trim() === q.question.trim()
+    );
+    if (alreadyExists) {
+      setDuplicateProQs((prev) => new Set(prev).add(index));
+      return;
+    }
+    addQuestions([{
+      question: q.question,
+      shortAnswer: q.shortAnswer,
+      simpleExplanation: q.simpleExplanation,
+      example: q.example,
+      whatToMention: q.whatToMention,
+      commonMistakes: q.commonMistakes,
+      tags: q.tags,
+      category: q.category as ProfessionalQuestion["category"],
+      topic: q.topic,
+      difficulty: q.difficulty,
+    }], "ai");
+    const newProQs = new Set(addedProQs).add(index);
+    setAddedProQs(newProQs);
+    if (aiFullResult) {
+      saveFullAnalysisCacheData(job.id, {
+        result: aiFullResult,
+        addedProQs: Array.from(newProQs),
+        addedPerQs: Array.from(addedPerQs),
+        savedPrepFields: Array.from(savedPrepFields),
+      });
+    }
+  }
+
+  function handleAddPersonalQ(q: AIPersonalQuestion, index: number) {
+    const alreadyExists = allQuestions.some(
+      (existing) => existing.question.trim() === q.question.trim()
+    );
+    if (alreadyExists) {
+      setDuplicatePerQs((prev) => new Set(prev).add(index));
+      return;
+    }
+    const topicMap: Record<string, string> = {
+      behavioral: "שאלה התנהגותית",
+      motivational: "מוטיבציה",
+      situational: "שאלה מצבית",
+      personal: "שאלה אישית",
+    };
+    addQuestions([{
+      question: q.question,
+      shortAnswer: q.suggestedAnswer.slice(0, 300),
+      simpleExplanation: q.suggestedAnswer,
+      example: q.followUpQuestions.join("\n"),
+      whatToMention: q.tips,
+      commonMistakes: [],
+      tags: ["אישי", "ראיון"],
+      category: "Personal",
+      topic: topicMap[q.type] ?? "שאלה אישית",
+      difficulty: "basic",
+    }], "ai");
+    const newPerQs = new Set(addedPerQs).add(index);
+    setAddedPerQs(newPerQs);
+    if (aiFullResult) {
+      saveFullAnalysisCacheData(job.id, {
+        result: aiFullResult,
+        addedProQs: Array.from(addedProQs),
+        addedPerQs: Array.from(newPerQs),
+        savedPrepFields: Array.from(savedPrepFields),
+      });
+    }
+  }
+
+  function handleSavePrepSuggestion(field: PrepField, value: string) {
+    savePrep(field, value);
+    const newSavedFields = new Set(savedPrepFields).add(field);
+    setSavedPrepFields(newSavedFields);
+    if (aiFullResult) {
+      saveFullAnalysisCacheData(job.id, {
+        result: aiFullResult,
+        addedProQs: Array.from(addedProQs),
+        addedPerQs: Array.from(addedPerQs),
+        savedPrepFields: Array.from(newSavedFields),
+      });
+    }
   }
 
   if (mode === "edit") {
@@ -710,10 +1345,41 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
           </>
         )}
 
-        <p className="prep-section__helper" style={{ marginTop: "14px" }}>
-          הבדיקה מתבצעת מקומית בלבד לפי הפרופיל ותיאור המשרה השמורים בדפדפן.
-          המידע אינו נשלח לשרת חיצוני.
-        </p>
+        {aiSettings.aiEnabled && profile && !isProfileEmpty(profile) && job.jobDescription.trim() && (
+          <div style={{ marginTop: "14px", borderTop: "1px solid var(--border)", paddingTop: "14px" }}>
+            <p className="cv-tailoring-section__title" style={{ marginBottom: "8px" }}>
+              התאמת קורות חיים בעזרת AI
+            </p>
+            <div className="btn-row">
+              <button
+                type="button"
+                className="btn btn--ai btn--sm"
+                onClick={handleAiCvClick}
+                disabled={aiCvLoading}
+              >
+                {aiCvLoading ? "⏳ מנתח…" : "✨ התאמה בעזרת AI"}
+              </button>
+              {aiCvResult && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setAiCvResult(null)}
+                >
+                  סגירה
+                </button>
+              )}
+            </div>
+            {aiCvError && <p className="ai-error-msg">{aiCvError}</p>}
+            {aiCvResult && <AICvTailoringAIResults result={aiCvResult} />}
+          </div>
+        )}
+
+        {!aiSettings.aiEnabled && (
+          <p className="prep-section__helper" style={{ marginTop: "14px" }}>
+            הבדיקה מתבצעת מקומית בלבד לפי הפרופיל ותיאור המשרה השמורים בדפדפן.
+            המידע אינו נשלח לשרת חיצוני. להפעיל AI בהגדרות כדי לקבל ניתוח מעמיק יותר.
+          </p>
+        )}
       </div>
 
       <div className="recommended-questions-section">
@@ -768,6 +1434,204 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
         )}
       </div>
 
+      <div className="card">
+        <h3 className="card__title">✨ שאלות ראיון מותאמות למשרה הזו</h3>
+        {!aiSettings.aiEnabled ? (
+          <p className="prep-section__helper">
+            AI כבוי. ניתן להפעיל ב"הפרופיל שלי" כדי לקבל שאלות ראיון מותאמות.
+          </p>
+        ) : !job.jobDescription.trim() ? (
+          <p className="prep-section__helper">
+            כדי לנתח, יש להוסיף תיאור משרה לכרטיס המשרה.
+          </p>
+        ) : (
+          <>
+            <p className="prep-section__helper">
+              AI יצור שאלות מקצועיות ואישיות מותאמות לתיאור המשרה ולפרופיל שלך —
+              ותוכלי להוסיף כל שאלה ישירות למאגר השאלות שלך.
+            </p>
+
+            <div className="job-ai-company-row">
+              <button
+                type="button"
+                className="btn btn--secondary btn--sm"
+                onClick={() => setShowCompanyInput((v) => !v)}
+              >
+                {showCompanyInput ? "− הסתר מידע על החברה" : "+ הוסף מידע על החברה (אופציונלי)"}
+              </button>
+            </div>
+
+            {showCompanyInput && (
+              <div className="form-group" style={{ marginTop: "10px" }}>
+                <label className="form-label" htmlFor="job-company-info">
+                  מידע על החברה
+                </label>
+                <textarea
+                  id="job-company-info"
+                  className="form-input form-textarea"
+                  value={companyInfo}
+                  onChange={(e) => setCompanyInfo(e.target.value)}
+                  placeholder="הדבק כאן מידע על החברה — מוצרים, שוק, תרבות, גודל צוות..."
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div className="btn-row" style={{ marginTop: "12px" }}>
+              <button
+                type="button"
+                className="btn btn--ai btn--sm"
+                onClick={handleAiFullAnalysisClick}
+                disabled={aiFullLoading}
+              >
+                {aiFullLoading ? "⏳ מנתח…" : aiFullResult ? "✨ נתח שוב" : "✨ נתח ויצור שאלות ראיון"}
+              </button>
+              {aiFullResult && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setShowFullResults((v) => !v)}
+                >
+                  {showFullResults ? "הסתר תוצאות" : "הצג תוצאות"}
+                </button>
+              )}
+            </div>
+
+            {aiFullLoading && (
+              <div className="ai-qa-thinking" role="status" aria-live="polite">
+                <span className="ai-qa-thinking__dots">
+                  <span /><span /><span />
+                </span>
+                <span>AI מנתח את המשרה…</span>
+              </div>
+            )}
+
+            {!aiFullLoading && aiFullError && (
+              <p className="ai-error-msg">{aiFullError}</p>
+            )}
+
+            {aiFullResult && showFullResults && (
+              <div className="job-ai-results">
+
+                <div className="job-ai-results__section">
+                  <h4 className="job-ai-results__section-title">
+                    שאלות מקצועיות ({aiFullResult.professionalQuestions.length})
+                  </h4>
+                  <p className="prep-section__helper">
+                    לחצי "+ הוסף למאגר" כדי לשמור שאלה במאגר השאלות המקצועיות שלך.
+                  </p>
+                  <div className="job-ai-results__q-list">
+                    {aiFullResult.professionalQuestions.map((q, i) => (
+                      <AIProQCard
+                        key={i}
+                        q={q}
+                        added={addedProQs.has(i)}
+                        isDuplicate={duplicateProQs.has(i)}
+                        onAdd={() => handleAddProfessionalQ(q, i)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="job-ai-results__section">
+                  <h4 className="job-ai-results__section-title">
+                    שאלות אישיות / התנהגותיות ({aiFullResult.personalQuestions.length})
+                  </h4>
+                  <p className="prep-section__helper">
+                    שאלות מותאמות לפרופיל שלך עם טיוטת תשובה.
+                  </p>
+                  <div className="job-ai-results__q-list">
+                    {aiFullResult.personalQuestions.map((q, i) => (
+                      <AIPerQCard
+                        key={i}
+                        q={q}
+                        added={addedPerQs.has(i)}
+                        isDuplicate={duplicatePerQs.has(i)}
+                        onAdd={() => handleAddPersonalQ(q, i)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="job-ai-results__section">
+                  <h4 className="job-ai-results__section-title">הצעות לחומר הכנה</h4>
+                  <p className="prep-section__helper">
+                    לחצי "שמור" כדי להעתיק את ההצעה לסעיף ההכנה המתאים.
+                  </p>
+                  <PrepSuggestionCard
+                    title="דרישות מרכזיות מהמשרה"
+                    value={aiFullResult.prepSuggestions.keyRequirements}
+                    saved={savedPrepFields.has("keyRequirements")}
+                    onSave={() => handleSavePrepSuggestion("keyRequirements", aiFullResult!.prepSuggestions.keyRequirements)}
+                  />
+                  <PrepSuggestionCard
+                    title="מה אני צריכה ללמוד"
+                    value={aiFullResult.prepSuggestions.skillsToLearn}
+                    saved={savedPrepFields.has("skillsToLearn")}
+                    onSave={() => handleSavePrepSuggestion("skillsToLearn", aiFullResult!.prepSuggestions.skillsToLearn)}
+                  />
+                  <PrepSuggestionCard
+                    title="הכנה לשיחה טלפונית"
+                    value={aiFullResult.prepSuggestions.phoneScreenNotes}
+                    saved={savedPrepFields.has("phoneScreenNotes")}
+                    onSave={() => handleSavePrepSuggestion("phoneScreenNotes", aiFullResult!.prepSuggestions.phoneScreenNotes)}
+                  />
+                  {aiFullResult.prepSuggestions.companyResearch && aiFullResult.prepSuggestions.companyResearch !== "לא סופק מידע על החברה" && (
+                    <PrepSuggestionCard
+                      title="מחקר על החברה"
+                      value={aiFullResult.prepSuggestions.companyResearch}
+                      saved={savedPrepFields.has("companyResearch")}
+                      onSave={() => handleSavePrepSuggestion("companyResearch", aiFullResult!.prepSuggestions.companyResearch)}
+                    />
+                  )}
+                </div>
+
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className="card">
+        <h3 className="card__title">הכנה לראיון בעזרת AI</h3>
+        {!aiSettings.aiEnabled ? (
+          <p className="prep-section__helper">
+            AI כבוי. ניתן להפעיל ב"הפרופיל שלי" כדי לקבל תוכנית הכנה מותאמת לראיון.
+          </p>
+        ) : !job.jobDescription.trim() ? (
+          <p className="prep-section__helper">
+            כדי לקבל הכנה בעזרת AI, יש להוסיף תיאור משרה לכרטיס המשרה.
+          </p>
+        ) : (
+          <>
+            <p className="prep-section__helper">
+              בניית תוכנית הכנה מותאמת — שאלות צפויות, נושאים לחזור עליהם, פיץ׳ אישי ושאלות לשאול.
+            </p>
+            <div className="btn-row" style={{ marginTop: "12px" }}>
+              <button
+                type="button"
+                className="btn btn--ai btn--sm"
+                onClick={handleAiPrepClick}
+                disabled={aiPrepLoading}
+              >
+                {aiPrepLoading ? "⏳ מכין תוכנית…" : aiPrepResult ? "✨ נתח שוב" : "✨ בניית תוכנית הכנה בעזרת AI"}
+              </button>
+              {aiPrepResult && (
+                <button
+                  type="button"
+                  className="btn btn--secondary btn--sm"
+                  onClick={() => setShowPrepResults((v) => !v)}
+                >
+                  {showPrepResults ? "הסתר" : "הצג"}
+                </button>
+              )}
+            </div>
+            {aiPrepError && <p className="ai-error-msg">{aiPrepError}</p>}
+            {aiPrepResult && showPrepResults && <AIInterviewPrepResults result={aiPrepResult} />}
+          </>
+        )}
+      </div>
+
       <div className="prep-workspace">
         <div className="prep-workspace__header">
           <h3 className="prep-workspace__title">הכנה לראיון</h3>
@@ -786,6 +1650,28 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
           />
         ))}
       </div>
+
+      {aiCvConsent && (
+        <AIConsentModal
+          payload={aiCvConsent}
+          onConfirm={handleConfirmAiCv}
+          onCancel={() => setAiCvConsent(null)}
+        />
+      )}
+      {aiPrepConsent && (
+        <AIConsentModal
+          payload={aiPrepConsent}
+          onConfirm={handleConfirmAiPrep}
+          onCancel={() => setAiPrepConsent(null)}
+        />
+      )}
+      {aiFullConsent && (
+        <AIConsentModal
+          payload={aiFullConsent}
+          onConfirm={handleConfirmAiFullAnalysis}
+          onCancel={() => setAiFullConsent(null)}
+        />
+      )}
     </div>
   );
 }

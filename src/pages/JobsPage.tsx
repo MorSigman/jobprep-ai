@@ -20,10 +20,12 @@ const CATEGORY_FILTER_OPTIONS: { value: JobCategory | "all"; label: string }[] =
   { value: "all", label: "כל הקטגוריות" },
   { value: "Frontend", label: "Frontend" },
   { value: "Backend", label: "Backend" },
+  { value: "Full Stack", label: "Full Stack" },
   { value: "QA", label: "QA" },
   { value: "Data Analyst", label: "Data Analyst" },
   { value: "Cyber", label: "Cyber" },
   { value: "Product", label: "Product" },
+  { value: "UX/UI", label: "UX/UI" },
   { value: "Other", label: "אחר" },
 ];
 

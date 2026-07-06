@@ -12,10 +12,12 @@ export type JobStatus =
 export type JobCategory =
   | "Frontend"
   | "Backend"
+  | "Full Stack"
   | "QA"
   | "Data Analyst"
   | "Cyber"
   | "Product"
+  | "UX/UI"
   | "Other";
 
 export type JobApplication = {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { UserProfile } from "../types/profile";
+import { useAISettings } from "../lib/useAISettings";
 
 type Props = {
   profile: UserProfile;
@@ -114,6 +115,7 @@ function ProfilePage({ profile, onSave }: Props) {
   const [draft, setDraft] = useState<UserProfile>(() => ({ ...profile }));
   const [isDirty, setIsDirty] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
+  const { settings: aiSettings, updateSettings: updateAISettings } = useAISettings();
 
   function handleChange(key: keyof Omit<UserProfile, "updatedAt">, value: string) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -142,6 +144,62 @@ function ProfilePage({ profile, onSave }: Props) {
         <p className="page__subtitle">
           המידע בעמוד זה נשמר מקומית במחשב שלך וישמש בהמשך לחישוב התאמה למשרות.
         </p>
+      </div>
+
+      {/* AI Settings */}
+      <div className="card">
+        <div className="ai-settings-card">
+          <div>
+            <h3 className="ai-settings-card__title">הגדרות AI</h3>
+            <p className="ai-settings-card__desc">
+              הגדרות אלה שולטות בשימוש ב-AI. AI כבוי כברירת מחדל.
+              כדי להשתמש ב-AI, יש להגדיר מפתח API ב-<code>.env</code> ולהפעיל את שרת ה-AI.
+            </p>
+          </div>
+
+          <div className="ai-settings-row">
+            <div className="ai-settings-row__info">
+              <span className="ai-settings-row__label">הפעלת AI</span>
+              <span className="ai-settings-row__helper">
+                מאפשר יצירת שאלות ראיון בעזרת AI מתיאורי משרה.
+                דורש שרת AI מקומי רץ (ראי docs/AI_SETUP.md).
+              </span>
+            </div>
+            <label className="ai-settings-toggle" aria-label="הפעלת AI">
+              <input
+                type="checkbox"
+                checked={aiSettings.aiEnabled}
+                onChange={(e) => updateAISettings({ aiEnabled: e.target.checked })}
+              />
+              <span className="ai-settings-toggle__track" />
+            </label>
+          </div>
+
+          {aiSettings.aiEnabled && (
+            <p className="ai-settings-warning">
+              AI מופעל. לפני כל שליחה, יוצג אישור עם הטקסט המדויק שישלח לשרת.
+              אף נתון לא ישלח ללא אישורך.
+            </p>
+          )}
+
+          <div className="ai-settings-row">
+            <div className="ai-settings-row__info">
+              <span className="ai-settings-row__label">ניקוי אוטומטי לפני שליחה</span>
+              <span className="ai-settings-row__helper">
+                לפני שליחה ל-AI, כתובות מייל, מספרי טלפון, קישורים ות.ז. יוחלפו
+                בתגיות כמו [EMAIL], [PHONE], [URL], [ID].
+              </span>
+            </div>
+            <label className="ai-settings-toggle" aria-label="ניקוי לפני שליחה">
+              <input
+                type="checkbox"
+                checked={aiSettings.redactBeforeSend}
+                onChange={(e) => updateAISettings({ redactBeforeSend: e.target.checked })}
+              />
+              <span className="ai-settings-toggle__track" />
+            </label>
+          </div>
+        </div>
       </div>
 
       {SECTIONS.map((section) => (
