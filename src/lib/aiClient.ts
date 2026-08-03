@@ -1,5 +1,29 @@
 const SERVER_URL = "http://localhost:8787";
 
+async function apiFetch(path: string, body: unknown): Promise<Response> {
+  try {
+    return await fetch(`${SERVER_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error("השרת לא פעיל — הפעלי מחדש את JobPrep.bat");
+    }
+    throw err;
+  }
+}
+
+async function parseErrorBody(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: string };
+    return body.error ?? "שגיאת שרת";
+  } catch {
+    return "שגיאת שרת";
+  }
+}
+
 export type AIRawQuestion = {
   question: string;
   shortAnswer: string;
@@ -24,23 +48,8 @@ export type AIJobQuestionsPayload = {
 export async function fetchAIJobQuestions(
   payload: AIJobQuestionsPayload
 ): Promise<AIRawQuestion[]> {
-  const res = await fetch(`${SERVER_URL}/api/ai/job-questions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let errMsg = "שגיאת שרת";
-    try {
-      const body = (await res.json()) as { error?: string };
-      errMsg = body.error ?? errMsg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(errMsg);
-  }
-
+  const res = await apiFetch("/api/ai/job-questions", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
   const data = (await res.json()) as { questions?: AIRawQuestion[] };
   return data.questions ?? [];
 }
@@ -78,46 +87,16 @@ export type AIInterviewPrepResult = {
 export async function fetchAICvTailoring(
   payload: AICvTailoringPayload
 ): Promise<AICvTailoringResult> {
-  const res = await fetch(`${SERVER_URL}/api/ai/cv-tailoring`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let errMsg = "שגיאת שרת";
-    try {
-      const body = (await res.json()) as { error?: string };
-      errMsg = body.error ?? errMsg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(errMsg);
-  }
-
+  const res = await apiFetch("/api/ai/cv-tailoring", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
   return (await res.json()) as AICvTailoringResult;
 }
 
 export async function fetchAIInterviewPrep(
   payload: AIInterviewPrepPayload
 ): Promise<AIInterviewPrepResult> {
-  const res = await fetch(`${SERVER_URL}/api/ai/interview-prep`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let errMsg = "שגיאת שרת";
-    try {
-      const body = (await res.json()) as { error?: string };
-      errMsg = body.error ?? errMsg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(errMsg);
-  }
-
+  const res = await apiFetch("/api/ai/interview-prep", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
   return (await res.json()) as AIInterviewPrepResult;
 }
 
@@ -139,23 +118,8 @@ export type AIAnswerResult = {
 export async function fetchAIAnswer(
   payload: AIAnswerPayload
 ): Promise<AIAnswerResult> {
-  const res = await fetch(`${SERVER_URL}/api/ai/answer-question`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let errMsg = "שגיאת שרת";
-    try {
-      const body = (await res.json()) as { error?: string };
-      errMsg = body.error ?? errMsg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(errMsg);
-  }
-
+  const res = await apiFetch("/api/ai/answer-question", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
   return (await res.json()) as AIAnswerResult;
 }
 
@@ -172,7 +136,23 @@ export type AIPrepSuggestions = {
   skillsToLearn: string;
   phoneScreenNotes: string;
   companyResearch: string;
+  suggestedSalary?: string;
 };
+
+export type AICvFullAnalysisResult = {
+  strengths: string[];
+  areasToImprove: string[];
+  focusPerJobType: { jobType: string; focus: string }[];
+  questions: AIRawQuestion[];
+};
+
+export async function fetchAICvFullAnalysis(
+  profileSummary: string
+): Promise<AICvFullAnalysisResult> {
+  const res = await apiFetch("/api/ai/cv-full-analysis", { profileSummary });
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  return (await res.json()) as AICvFullAnalysisResult;
+}
 
 export type AIJobFullAnalysisPayload = {
   jobTitle?: string;
@@ -181,33 +161,160 @@ export type AIJobFullAnalysisPayload = {
   profileSummary?: string;
 };
 
+export type AICvReview = {
+  overallFit: "strong" | "moderate" | "weak";
+  strengthsToHighlight: string[];
+  suggestedChanges: string[];
+  keywordsToAdd: string[];
+  projectsToFeature: string[];
+};
+
 export type AIJobFullAnalysisResult = {
   professionalQuestions: AIRawQuestion[];
   personalQuestions: AIPersonalQuestion[];
   prepSuggestions: AIPrepSuggestions;
+  cvReview?: AICvReview;
 };
 
 export async function fetchAIJobFullAnalysis(
   payload: AIJobFullAnalysisPayload
 ): Promise<AIJobFullAnalysisResult> {
-  const res = await fetch(`${SERVER_URL}/api/ai/job-full-analysis`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    let errMsg = "שגיאת שרת";
-    try {
-      const body = (await res.json()) as { error?: string };
-      errMsg = body.error ?? errMsg;
-    } catch {
-      /* ignore */
-    }
-    throw new Error(errMsg);
-  }
-
+  const res = await apiFetch("/api/ai/job-full-analysis", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
   return (await res.json()) as AIJobFullAnalysisResult;
+}
+
+export type AICvParseResult = {
+  targetRoles: string;
+  targetCategories: string;
+  skills: string;
+  technologies: string;
+  tools: string;
+  projectsSummary: string;
+  experienceSummary: string;
+  educationSummary: string;
+  strengths: string;
+};
+
+export async function fetchAICvParse(cvText: string): Promise<AICvParseResult> {
+  const res = await apiFetch("/api/ai/parse-cv", { cvText });
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  return (await res.json()) as AICvParseResult;
+}
+
+export type AIProjectRepo = {
+  name: string;
+  description: string | null;
+  language: string | null;
+};
+
+export type AIProjectAnalysis = {
+  name: string;
+  simpleExplanation: string;
+  interviewTip: string;
+};
+
+export type AIProjectAnalysisResult = {
+  projects: AIProjectAnalysis[];
+  questions: AIRawQuestion[];
+};
+
+export async function fetchAIProjectAnalysis(
+  repos: AIProjectRepo[]
+): Promise<AIProjectAnalysisResult> {
+  const res = await apiFetch("/api/ai/analyze-projects", { repos });
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  const data = (await res.json()) as AIProjectAnalysisResult;
+  return { projects: data.projects ?? [], questions: data.questions ?? [] };
+}
+
+export async function fetchAIPersonalInterviewPrep(
+  profileSummary: string
+): Promise<AIPersonalQuestion[]> {
+  const res = await apiFetch("/api/ai/personal-interview-prep", { profileSummary });
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  const data = (await res.json()) as { questions?: AIPersonalQuestion[] };
+  return data.questions ?? [];
+}
+
+export type AISingleProjectResult = {
+  analysis: string;
+  architecture: string;
+  whatWasBuilt: string;
+  technologiesExplained: string;
+  questions: AIRawQuestion[];
+};
+
+export async function fetchAISingleProjectAnalysis(project: {
+  name: string;
+  description: string;
+  language: string;
+}): Promise<AISingleProjectResult> {
+  const res = await apiFetch("/api/ai/analyze-single-project", project);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  return (await res.json()) as AISingleProjectResult;
+}
+
+export type AIProjectQAPayload = {
+  projectName: string;
+  description: string;
+  language: string;
+  analysis: string;
+  architecture: string;
+  whatWasBuilt: string;
+  technologiesExplained: string;
+  question: string;
+};
+
+export async function fetchAIProjectQuestion(
+  payload: AIProjectQAPayload
+): Promise<string> {
+  const res = await apiFetch("/api/ai/project-question", payload);
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  const data = (await res.json()) as { answer: string };
+  return data.answer ?? "";
+}
+
+export type AIPersonalAnswerResult = {
+  type: AIPersonalQuestion["type"];
+  suggestedAnswer: string;
+  tips: string[];
+  followUpQuestions: string[];
+};
+
+export async function fetchAIPersonalAnswer(
+  question: string,
+  profileSummary: string
+): Promise<AIPersonalAnswerResult> {
+  const res = await apiFetch("/api/ai/personal-answer", { question, profileSummary });
+  if (!res.ok) throw new Error(await parseErrorBody(res));
+  return (await res.json()) as AIPersonalAnswerResult;
+}
+
+export async function fetchAISalaryEstimate(
+  roleTitle: string,
+  category?: string,
+  location?: string
+): Promise<string> {
+  try {
+    const res = await apiFetch("/api/ai/salary-estimate", { roleTitle, category, location });
+    if (!res.ok) return "";
+    const data = (await res.json()) as { estimate?: string };
+    return data.estimate ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export async function fetchAICompanyInfo(companyName: string): Promise<string> {
+  try {
+    const res = await apiFetch("/api/ai/company-info", { companyName });
+    if (!res.ok) return "";
+    const data = (await res.json()) as { summary?: string };
+    return data.summary ?? "";
+  } catch {
+    return "";
+  }
 }
 
 export async function checkServerHealth(): Promise<boolean> {

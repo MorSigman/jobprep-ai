@@ -66,11 +66,6 @@ function AppLayout({
           {theme === "light" ? "🌙 מצב לילה" : "☀️ מצב יום"}
         </button>
 
-        <div className="demo-notice">
-          <span className="demo-notice__label">מצב דמו</span>
-          הנתונים המוצגים כאן פיקטיביים בלבד. בגרסה המקומית האמיתית, המידע
-          האישי נשמר רק על המחשב של המשתמשת.
-        </div>
       </aside>
 
       <main className="main-content">{children}</main>

@@ -1,12 +1,20 @@
 import { useState, useRef } from "react";
 import type { JobApplication } from "../types/job";
 import type { PageName } from "../types/navigation";
-import { parseJobsBackupFile, exportJobsToExcel } from "../lib/backup";
+import {
+  parseFullOrJobsBackupFile,
+  downloadFullBackup,
+  exportFullToExcel,
+  type FullBackup,
+  type JobsBackup,
+} from "../lib/backup";
+import { useProjects } from "../hooks/useProjects";
+import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
+import { usePersonalQuestions } from "../hooks/usePersonalQuestions";
 
 type Props = {
   jobs: JobApplication[];
   onNavigate: (page: PageName) => void;
-  onExport: () => void;
   onImport: (jobs: JobApplication[]) => void;
 };
 
@@ -57,10 +65,13 @@ function getLast7Days() {
   });
 }
 
-function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
+function DashboardPage({ jobs, onNavigate, onImport }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [backupMessage, setBackupMessage] = useState<BackupMessage | null>(null);
-  const [pendingJobs, setPendingJobs] = useState<JobApplication[] | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<FullBackup | JobsBackup | null>(null);
+  const { projects, setProjects } = useProjects();
+  const { questions: professionalQs, replaceUserQuestions } = useProfessionalQuestions();
+  const { questions: personalQs, replaceAll: replacePersonalQs } = usePersonalQuestions();
 
   function showMessage(msg: BackupMessage) {
     setBackupMessage(msg);
@@ -68,7 +79,8 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
   }
 
   function handleExportClick() {
-    onExport();
+    const userProfQs = professionalQs.filter((q) => q.source !== "demo");
+    downloadFullBackup(jobs, projects, userProfQs, personalQs);
     showMessage({ type: "success", text: "קובץ הגיבוי נוצר בהצלחה." });
   }
 
@@ -77,7 +89,7 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
       showMessage({ type: "error", text: "אין משרות לייצוא." });
       return;
     }
-    exportJobsToExcel(jobs);
+    exportFullToExcel(jobs, projects);
     showMessage({ type: "success", text: "קובץ האקסל נוצר בהצלחה." });
   }
 
@@ -89,9 +101,9 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
-    parseJobsBackupFile(file)
+    parseFullOrJobsBackupFile(file)
       .then((backup) => {
-        setPendingJobs(backup.jobs);
+        setPendingBackup(backup);
         setBackupMessage(null);
       })
       .catch(() => {
@@ -100,14 +112,19 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
   }
 
   function confirmImport() {
-    if (!pendingJobs) return;
-    onImport(pendingJobs);
-    setPendingJobs(null);
+    if (!pendingBackup) return;
+    onImport(pendingBackup.jobs);
+    if (pendingBackup.version === 2) {
+      setProjects(pendingBackup.projects ?? []);
+      replaceUserQuestions(pendingBackup.professionalQuestions ?? []);
+      replacePersonalQs(pendingBackup.personalQuestions ?? []);
+    }
+    setPendingBackup(null);
     showMessage({ type: "success", text: "הגיבוי יובא בהצלחה." });
   }
 
   function cancelImport() {
-    setPendingJobs(null);
+    setPendingBackup(null);
   }
 
   const todayStr = toLocalDateStr();
@@ -127,6 +144,7 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
     ).length,
     inInterview: jobs.filter((j) => INTERVIEW_STATUSES.has(j.status)).length,
     waiting: jobs.filter((j) => j.status === "waiting").length,
+    rejected: jobs.filter((j) => j.status === "rejected").length,
   };
 
   const dailyCounts = weekDays.map((day) => ({
@@ -174,7 +192,7 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
         <p className="page__subtitle">פעילות שבעת הימים האחרונים</p>
       </div>
 
-      <div className="stats-grid stats-grid--5">
+      <div className="stats-grid stats-grid--6">
         <div className="stat-card">
           <strong className="stat-card__number">{stats.total}</strong>
           <span className="stat-card__label">סך הכול משרות</span>
@@ -194,6 +212,10 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
         <div className="stat-card">
           <strong className="stat-card__number">{stats.waiting}</strong>
           <span className="stat-card__label">ממתינות לתשובה</span>
+        </div>
+        <div className="stat-card stat-card--rejected">
+          <strong className="stat-card__number">{stats.rejected}</strong>
+          <span className="stat-card__label">נדחו</span>
         </div>
       </div>
 
@@ -331,10 +353,12 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
             aria-label="בחירת קובץ גיבוי לייבוא"
           />
         </div>
-        {pendingJobs !== null && (
+        {pendingBackup !== null && (
           <div className="import-confirm" role="alert">
             <span className="import-confirm__text">
-              ייבוא גיבוי יחליף את רשימת המשרות הנוכחית. להמשיך?
+              {pendingBackup.version === 2
+                ? "ייבוא גיבוי מלא יחליף משרות, פרויקטים ושאלות. להמשיך?"
+                : "ייבוא גיבוי יחליף את רשימת המשרות הנוכחית. להמשיך?"}
             </span>
             <div className="btn-row">
               <button
@@ -364,43 +388,6 @@ function DashboardPage({ jobs, onNavigate, onExport, onImport }: Props) {
         )}
       </div>
 
-      <div className="ai-demo-panel">
-        <div className="ai-demo-panel__header">
-          <span className="chip chip--demo">דמו בלבד</span>
-          <h3 className="ai-demo-panel__title">
-            עוזרת AI להכנה לראיון — דמו בלבד
-          </h3>
-          <p className="ai-demo-panel__subtitle">
-            בגרסה המקומית העתידית — ניתוח משרה מקומי, בלי לשלוח מידע לשרת
-            חיצוני
-          </p>
-        </div>
-        <div className="ai-demo-panel__form">
-          <label className="form-label" htmlFor="ai-demo-input">
-            שאלי שאלה על ההכנה לראיון
-          </label>
-          <div className="ai-demo-panel__input-row">
-            <input
-              id="ai-demo-input"
-              className="form-input"
-              placeholder="לדוגמה: אילו שאלות יכולות להיות בראיון לתפקיד Data Analyst?"
-              disabled
-              aria-disabled="true"
-            />
-            <button type="button" className="btn btn--primary" disabled>
-              שאלי את העוזרת
-            </button>
-          </div>
-        </div>
-        <div className="ai-demo-panel__response">
-          <p className="ai-demo-panel__response-label">תשובה לדוגמה</p>
-          <p className="ai-demo-panel__response-text">
-            בגרסה המקומית העתידית, העוזרת תנתח את תיאור המשרה, תשווה אותו
-            לפרופיל שלך, ותציע שאלות ותשובות מותאמות — הכל מקומית, בלי לשלוח
-            מידע אישי לשרת חיצוני.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

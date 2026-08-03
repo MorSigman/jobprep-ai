@@ -25,6 +25,7 @@ type UseProfessionalQuestionsResult = {
   addQuestion: (q: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">) => void;
   addQuestions: (qs: Omit<ProfessionalQuestion, "id" | "source" | "createdAt" | "updatedAt">[], source: "user" | "job-description" | "ai") => void;
   deleteUserQuestion: (id: string) => void;
+  replaceUserQuestions: (qs: ProfessionalQuestion[]) => void;
 };
 
 export function useProfessionalQuestions(): UseProfessionalQuestionsResult {
@@ -73,5 +74,10 @@ export function useProfessionalQuestions(): UseProfessionalQuestionsResult {
     saveUserQuestions(updated);
   }
 
-  return { questions, addQuestion, addQuestions, deleteUserQuestion };
+  function replaceUserQuestions(qs: ProfessionalQuestion[]): void {
+    setUserQuestions(qs);
+    saveUserQuestions(qs);
+  }
+
+  return { questions, addQuestion, addQuestions, deleteUserQuestion, replaceUserQuestions };
 }

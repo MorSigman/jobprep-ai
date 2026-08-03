@@ -391,6 +391,8 @@ const TEMPLATES: Record<QuestionCategory, QuestionTemplate[]> = {
     },
   ],
   Personal: [],
+  Cpp: [],
+  Embedded: [],
 };
 
 // ─── Analysis ─────────────────────────────────────────────────────────────────

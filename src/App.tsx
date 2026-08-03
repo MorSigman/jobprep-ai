@@ -8,7 +8,6 @@ import ProjectsPage from "./pages/ProjectsPage";
 import PersonalInterviewPage from "./pages/PersonalInterviewPage";
 import ProfessionalInterviewPage from "./pages/ProfessionalInterviewPage";
 import ProfilePage from "./pages/ProfilePage";
-import { downloadJobsBackup } from "./lib/backup";
 import { useJobs } from "./hooks/useJobs";
 import { useProfile } from "./hooks/useProfile";
 import type { PageName } from "./types/navigation";
@@ -50,10 +49,6 @@ function App() {
     }
   }
 
-  function handleExport() {
-    downloadJobsBackup(jobs);
-  }
-
   function handleImport(importedJobs: JobApplication[]) {
     replaceJobs(importedJobs);
   }
@@ -65,7 +60,6 @@ function App() {
           <DashboardPage
             jobs={jobs}
             onNavigate={handleNavigate}
-            onExport={handleExport}
             onImport={handleImport}
           />
         );
@@ -103,9 +97,9 @@ function App() {
       case "projects":
         return <ProjectsPage />;
       case "personal-interview":
-        return <PersonalInterviewPage />;
+        return <PersonalInterviewPage profile={profile} />;
       case "professional-interview":
-        return <ProfessionalInterviewPage />;
+        return <ProfessionalInterviewPage profile={profile} />;
       case "profile":
         return <ProfilePage profile={profile} onSave={updateProfile} />;
     }

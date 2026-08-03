@@ -6,8 +6,6 @@ import {
   saveJobs,
   deleteJob as dbDeleteJob,
 } from "../lib/localDb";
-import { demoJobs } from "../data/demoJobs";
-
 const LEGACY_LS_KEY = "jobprep-ai-jobs";
 const MIGRATION_FLAG = "jobprep-ai-indexeddb-migrated";
 
@@ -47,12 +45,7 @@ export function useJobs(): UseJobsResult {
         }
 
         const stored = await getAllJobs();
-        if (stored.length === 0) {
-          await saveJobs(demoJobs);
-          setJobs(demoJobs);
-        } else {
-          setJobs(stored);
-        }
+        setJobs(stored);
       } catch {
         setError("לא ניתן לטעון את המידע המקומי כרגע.");
       } finally {

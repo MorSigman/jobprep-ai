@@ -18,6 +18,8 @@ export const CATEGORY_LABELS: Record<QuestionCategory, string> = {
   "Technical Thinking": "חשיבה טכנית",
   Protocols: "פרוטוקולים ותקשורת",
   Architecture: "ארכיטקטורה",
+  Cpp: "C / C++",
+  Embedded: "Embedded / RTOS / Real Time",
   "Machine Learning": "למידת מכונה",
   "Deep Learning": "למידה עמוקה",
   AI: "בינה מלאכותית",

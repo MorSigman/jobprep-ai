@@ -1,7 +1,8 @@
 import { useState } from "react";
-import type { JobApplication, JobCategory, JobStatus } from "../types/job";
+import type { JobApplication, JobStatus } from "../types/job";
 import JobCard from "../components/JobCard";
 import AddJobForm from "../components/AddJobForm";
+import { useCustomCategories } from "../hooks/useCustomCategories";
 
 const STATUS_FILTER_OPTIONS: { value: JobStatus | "all"; label: string }[] = [
   { value: "all", label: "כל הסטטוסים" },
@@ -11,12 +12,13 @@ const STATUS_FILTER_OPTIONS: { value: JobStatus | "all"; label: string }[] = [
   { value: "phone_screen", label: "שיחה טלפונית" },
   { value: "home_assignment", label: "מטלת בית" },
   { value: "technical_interview", label: "ראיון טכני" },
+  { value: "digital_interview", label: "ראיון דיגיטלי" },
   { value: "personal_interview", label: "ראיון אישי" },
   { value: "offer", label: "הצעת עבודה" },
   { value: "rejected", label: "נדחתה" },
 ];
 
-const CATEGORY_FILTER_OPTIONS: { value: JobCategory | "all"; label: string }[] = [
+const BASE_CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "כל הקטגוריות" },
   { value: "Frontend", label: "Frontend" },
   { value: "Backend", label: "Backend" },
@@ -28,6 +30,35 @@ const CATEGORY_FILTER_OPTIONS: { value: JobCategory | "all"; label: string }[] =
   { value: "UX/UI", label: "UX/UI" },
   { value: "Other", label: "אחר" },
 ];
+
+type SortOption = "applied-desc" | "applied-asc" | "company-asc" | "status";
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "applied-desc", label: "תאריך הגשה — חדש ראשון" },
+  { value: "applied-asc",  label: "תאריך הגשה — ישן ראשון" },
+  { value: "company-asc",  label: "שם חברה — א׳ עד ת׳" },
+  { value: "status",       label: "לפי סטטוס" },
+];
+
+function sortJobs(jobs: JobApplication[], sort: SortOption): JobApplication[] {
+  const copy = [...jobs];
+  if (sort === "applied-desc") {
+    return copy.sort((a, b) => (b.appliedAt ?? "").localeCompare(a.appliedAt ?? ""));
+  }
+  if (sort === "applied-asc") {
+    return copy.sort((a, b) => (a.appliedAt ?? "").localeCompare(b.appliedAt ?? ""));
+  }
+  if (sort === "company-asc") {
+    return copy.sort((a, b) => a.companyName.localeCompare(b.companyName, "he"));
+  }
+  if (sort === "status") {
+    const ORDER = ["offer","personal_interview","digital_interview","technical_interview","phone_screen","home_assignment","waiting","applied","saved","rejected"];
+    return copy.sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+  }
+  return copy;
+}
+
+type ViewMode = "list" | "grid";
 
 type Props = {
   jobs: JobApplication[];
@@ -48,21 +79,38 @@ function toLocalDateStr(): string {
 function JobsPage({ jobs, onSelectJob, onAddJob, onUpdateJob }: Props) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
-  const [categoryFilter, setCategoryFilter] = useState<JobCategory | "all">(
-    "all"
-  );
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sort, setSort] = useState<SortOption>("applied-desc");
   const [showForm, setShowForm] = useState(false);
+  const [showRejected, setShowRejected] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => (localStorage.getItem("jobprep_jobs_view") as ViewMode) || "list"
+  );
 
-  const filtered = jobs.filter((job) => {
-    const query = search.toLowerCase();
-    const matchesSearch =
-      job.companyName.toLowerCase().includes(query) ||
-      job.roleTitle.toLowerCase().includes(query);
-    const matchesStatus = statusFilter === "all" || job.status === statusFilter;
-    const matchesCategory =
-      categoryFilter === "all" || job.category === categoryFilter;
-    return matchesSearch && matchesStatus && matchesCategory;
-  });
+  function changeView(mode: ViewMode) {
+    setViewMode(mode);
+    localStorage.setItem("jobprep_jobs_view", mode);
+  }
+  const { customCategories } = useCustomCategories();
+  const categoryFilterOptions = [
+    ...BASE_CATEGORY_OPTIONS,
+    ...customCategories.map((cat) => ({ value: cat, label: cat })),
+  ];
+
+  const filtered = sortJobs(
+    jobs.filter((job) => {
+      const query = search.toLowerCase();
+      const matchesSearch =
+        job.companyName.toLowerCase().includes(query) ||
+        job.roleTitle.toLowerCase().includes(query) ||
+        (job.jobNumber ?? "").toLowerCase().includes(query);
+      const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+      const matchesCategory =
+        categoryFilter === "all" || job.category === categoryFilter;
+      return matchesSearch && matchesStatus && matchesCategory;
+    }),
+    sort
+  );
 
   function handleAdd(job: JobApplication) {
     onAddJob(job);
@@ -134,17 +182,45 @@ function JobsPage({ jobs, onSelectJob, onAddJob, onUpdateJob }: Props) {
         <select
           className="form-input"
           value={categoryFilter}
-          onChange={(e) =>
-            setCategoryFilter(e.target.value as JobCategory | "all")
-          }
+          onChange={(e) => setCategoryFilter(e.target.value)}
           aria-label="סינון לפי קטגוריה"
         >
-          {CATEGORY_FILTER_OPTIONS.map((opt) => (
+          {categoryFilterOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
           ))}
         </select>
+        <select
+          className="form-input"
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          aria-label="מיון"
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <div className="view-toggle" role="group" aria-label="תצוגה">
+          <button
+            type="button"
+            className={`view-toggle__btn ${viewMode === "list" ? "view-toggle__btn--active" : ""}`}
+            onClick={() => changeView("list")}
+            title="תצוגת רשימה"
+          >
+            ☰ רשימה
+          </button>
+          <button
+            type="button"
+            className={`view-toggle__btn ${viewMode === "grid" ? "view-toggle__btn--active" : ""}`}
+            onClick={() => changeView("grid")}
+            title="תצוגת כרטיסיות"
+          >
+            ▦ כרטיסיות
+          </button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
@@ -153,18 +229,52 @@ function JobsPage({ jobs, onSelectJob, onAddJob, onUpdateJob }: Props) {
             ? 'לא נוספו משרות עדיין. לחץ על "+ הוספת משרה" כדי להתחיל.'
             : "לא נמצאו משרות תואמות לחיפוש."}
         </p>
-      ) : (
-        <div className="jobs-list">
-          {filtered.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              onSelect={onSelectJob}
-              onStatusChange={handleStatusChange}
-            />
-          ))}
-        </div>
-      )}
+      ) : (() => {
+        const activeJobs = filtered.filter((j) => j.status !== "rejected");
+        const rejectedJobs = filtered.filter((j) => j.status === "rejected");
+        return (
+          <>
+            {activeJobs.length > 0 && (
+              <div className={viewMode === "grid" ? "jobs-grid" : "jobs-list"}>
+                {activeJobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    compact={viewMode === "grid"}
+                    onSelect={onSelectJob}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))}
+              </div>
+            )}
+            {rejectedJobs.length > 0 && (
+              <div className="rejected-section">
+                <button
+                  type="button"
+                  className="rejected-section__toggle"
+                  onClick={() => setShowRejected((v) => !v)}
+                >
+                  <span>{showRejected ? "▲" : "▼"}</span>
+                  <span>נדחו ({rejectedJobs.length})</span>
+                </button>
+                {showRejected && (
+                  <div className={`${viewMode === "grid" ? "jobs-grid" : "jobs-list"} jobs-list--rejected`}>
+                    {rejectedJobs.map((job) => (
+                      <JobCard
+                        key={job.id}
+                        job={job}
+                        compact={viewMode === "grid"}
+                        onSelect={onSelectJob}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -12,6 +12,8 @@ export type QuestionCategory =
   | "Technical Thinking"
   | "Protocols"
   | "Architecture"
+  | "Cpp"
+  | "Embedded"
   | "Machine Learning"
   | "Deep Learning"
   | "AI"

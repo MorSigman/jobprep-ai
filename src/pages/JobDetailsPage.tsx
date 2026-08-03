@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { JobApplication } from "../types/job";
 import type { UserProfile } from "../types/profile";
-import type { ProfessionalQuestion } from "../types/professionalQuestion";
+import type { ProfessionalQuestion, QuestionCategory } from "../types/professionalQuestion";
 import type { PageName } from "../types/navigation";
 import AddJobForm from "../components/AddJobForm";
 import {
@@ -15,11 +15,14 @@ import {
   fetchAICvTailoring,
   fetchAIInterviewPrep,
   fetchAIJobFullAnalysis,
+  fetchAIAnswer,
   type AICvTailoringResult,
   type AIInterviewPrepResult,
   type AIRawQuestion,
   type AIPersonalQuestion,
   type AIJobFullAnalysisResult,
+  type AICvReview,
+  type AIAnswerResult,
 } from "../lib/aiClient";
 import { AIConsentModal } from "../components/AIConsentModal";
 import type { ConsentPayload } from "../components/AIConsentModal";
@@ -28,6 +31,7 @@ import { getRecommendedQuestionsForJob } from "../lib/recommendedQuestions";
 import { usePracticeProgress, type ProgressMap } from "../hooks/usePracticeProgress";
 import { CATEGORY_LABELS, DIFFICULTY_LABELS } from "../lib/questionLabels";
 import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
+import { SALARY_DATA, formatK } from "../data/salaryData";
 
 const STATUS_LABELS: Record<string, string> = {
   saved: "שמורה",
@@ -176,6 +180,57 @@ function PrepSection({ id, title, helper, value, onSave }: PrepSectionProps) {
   );
 }
 
+
+// ─── Salary Card ──────────────────────────────────────────────────────────────
+
+const GLOBAL_MAX = 60000;
+
+function SalaryCard({ category, salaryRange }: { category?: string; salaryRange?: string }) {
+  const data = category ? SALARY_DATA[category as keyof typeof SALARY_DATA] : undefined;
+
+  if (!data) return null;
+
+  return (
+    <div className="card salary-card">
+      <h3 className="card__title">שכר ממוצע בשוק — {category}</h3>
+      <p className="salary-card__note">שכר ברוטו חודשי, ₪ — שוק ההייטק הישראלי 2025 (הערכות)</p>
+
+      <div className="salary-levels">
+        {data.levels.map((level) => {
+          const barMin = (level.min / GLOBAL_MAX) * 100;
+          const barWidth = ((level.max - level.min) / GLOBAL_MAX) * 100;
+          return (
+            <div key={level.label} className="salary-level">
+              <span className="salary-level__label">{level.label}</span>
+              <div className="salary-level__bar-track">
+                <div
+                  className="salary-level__bar-fill"
+                  style={{ marginRight: `${barMin}%`, width: `${barWidth}%` }}
+                />
+              </div>
+              <span className="salary-level__range">
+                {formatK(level.min)}–{formatK(level.max)} ₪
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {data.note && <p className="salary-card__extra-note">{data.note}</p>}
+
+      {salaryRange && (
+        <div className="salary-card__user-range">
+          <span className="salary-card__user-label">טווח שכר שצוין למשרה זו:</span>
+          <strong className="salary-card__user-value">{salaryRange}</strong>
+        </div>
+      )}
+
+      <p className="salary-card__disclaimer">
+        * הנתונים הם הערכה כללית בלבד ומשתנים לפי חברה, ניסיון וכישורים ספציפיים.
+      </p>
+    </div>
+  );
+}
 
 type RQCardProps = { q: ProfessionalQuestion };
 function RecommendedQuestionCard({ q }: RQCardProps) {
@@ -458,7 +513,7 @@ function CvTailoringResults({ suggestions }: { suggestions: CvTailoringSuggestio
           <p className="cv-tailoring-section__title">מה חסר או דורש בדיקה</p>
           <div className="chip-row">
             {missingKeywords.map((kw) => (
-              <span key={kw} className="chip chip--demo">
+              <span key={kw} className="chip chip--topic chip--sm">
                 {kw}
               </span>
             ))}
@@ -542,7 +597,7 @@ function AICvTailoringAIResults({ result }: { result: AICvTailoringResult }) {
           <p className="cv-tailoring-section__title">מה חסר</p>
           <div className="chip-row">
             {result.missingKeywords.map((kw, i) => (
-              <span key={i} className="chip chip--demo">{kw}</span>
+              <span key={i} className="chip chip--topic chip--sm">{kw}</span>
             ))}
           </div>
         </div>
@@ -629,6 +684,56 @@ function AIInterviewPrepResults({ result }: { result: AIInterviewPrepResult }) {
           <p className="ai-prep-section__label">נקודות לחזרה מוכנה</p>
           <ul className="ai-prep-list ai-prep-list--warning">
             {result.weakSpotsToPrepare.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AICvReviewCard({ cvReview }: { cvReview: AICvReview }) {
+  const fitLabel: Record<string, string> = {
+    strong: "התאמה גבוהה",
+    moderate: "התאמה בינונית",
+    weak: "התאמה חלשה",
+  };
+  return (
+    <div className="cv-review-card">
+      <div className="cv-review-card__header">
+        <h4 className="cv-review-card__title">ניתוח קורות חיים למשרה זו</h4>
+        <span className={`chip cv-review-fit cv-review-fit--${cvReview.overallFit}`}>
+          {fitLabel[cvReview.overallFit] ?? cvReview.overallFit}
+        </span>
+      </div>
+      {cvReview.strengthsToHighlight.length > 0 && (
+        <div className="cv-review-section">
+          <p className="cv-review-section__label">מה להדגיש בקורות חיים</p>
+          <ul className="ai-prep-list">
+            {cvReview.strengthsToHighlight.map((s, i) => <li key={i}>{s}</li>)}
+          </ul>
+        </div>
+      )}
+      {cvReview.suggestedChanges.length > 0 && (
+        <div className="cv-review-section">
+          <p className="cv-review-section__label">שינויים מומלצים</p>
+          <ul className="ai-prep-list ai-prep-list--warning">
+            {cvReview.suggestedChanges.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      )}
+      {cvReview.keywordsToAdd.length > 0 && (
+        <div className="cv-review-section">
+          <p className="cv-review-section__label">מילות מפתח להוסיף</p>
+          <div className="chip-row">
+            {cvReview.keywordsToAdd.map((k, i) => <span key={i} className="chip chip--category">{k}</span>)}
+          </div>
+        </div>
+      )}
+      {cvReview.projectsToFeature.length > 0 && (
+        <div className="cv-review-section">
+          <p className="cv-review-section__label">פרויקטים להציג לתפקיד זה</p>
+          <ul className="ai-prep-list ai-prep-list--accent">
+            {cvReview.projectsToFeature.map((p, i) => <li key={i}>{p}</li>)}
           </ul>
         </div>
       )}
@@ -806,6 +911,15 @@ function loadFullAnalysisCache(jobId: string): FullAnalysisCache | null {
   }
 }
 
+type ChatMsg = {
+  id: string;
+  role: "user" | "ai";
+  text: string;
+  question?: string;
+  result?: AIAnswerResult;
+  addedToBank?: boolean;
+};
+
 function saveFullAnalysisCacheData(jobId: string, data: FullAnalysisCache): void {
   try {
     localStorage.setItem(`jobprep-ai-full-result-${jobId}`, JSON.stringify(data));
@@ -861,12 +975,18 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
   const [showFullResults, setShowFullResults] = useState(true);
   const [showPrepResults, setShowPrepResults] = useState(true);
 
+  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const recommendedQuestions = useMemo(
     () => getRecommendedQuestionsForJob(job, demoProfessionalQuestions),
     [job]
   );
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     setSuggestions(null);
     setAiCvResult(null);
     setAiCvError("");
@@ -893,6 +1013,59 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
       setSavedPrepFields(new Set());
     }
   }, [job.id]);
+
+  useEffect(() => {
+    if (chatMessages.length === 0) return;
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [chatMessages]);
+
+  async function handleChatSend() {
+    const q = chatInput.trim();
+    if (!q || chatLoading) return;
+    setChatInput("");
+    setChatMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", text: q }]);
+    setChatLoading(true);
+    try {
+      const result = await fetchAIAnswer({ question: q });
+      setChatMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "ai", text: result.answer, question: q, result },
+      ]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "ai", text: "שגיאה — ודאי שהשרת פעיל ונסי שוב." },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
+
+  function handleChatAddToBank(msg: ChatMsg) {
+    if (!msg.result || !msg.question) return;
+    addQuestions(
+      [
+        {
+          question: msg.question,
+          shortAnswer: msg.text,
+          simpleExplanation: msg.result.example || msg.text,
+          example: msg.result.example,
+          whatToMention: msg.result.keyPoints,
+          commonMistakes: msg.result.commonMistakes,
+          tags: [...msg.result.relatedTopics, job.roleTitle].filter(Boolean),
+          category: (msg.result.suggestedCategory in CATEGORY_LABELS
+            ? msg.result.suggestedCategory
+            : "General") as QuestionCategory,
+          topic: msg.result.suggestedTopic,
+          difficulty: msg.result.suggestedDifficulty,
+        },
+      ],
+      "user"
+    );
+    setChatMessages((prev) =>
+      prev.map((m) => (m.id === msg.id ? { ...m, addedToBank: true } : m))
+    );
+  }
 
   function handleSave(updatedJob: JobApplication) {
     onUpdate(updatedJob);
@@ -1231,8 +1404,8 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
       <div className="card">
         <div className="job-details-header">
           <div>
-            <h2 className="job-details-company">{job.companyName}</h2>
-            <p className="job-details-role">{job.roleTitle}</p>
+            <h2 className="job-details-role">{job.roleTitle}</h2>
+            <p className="job-details-company">{job.companyName}</p>
           </div>
           <span className={`status-badge status-badge--${job.status}`}>
             {STATUS_LABELS[job.status] ?? job.status}
@@ -1240,6 +1413,18 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
         </div>
 
         <div className="details-grid">
+          {job.jobNumber && (
+            <div className="details-grid__item">
+              <span className="details-grid__label">מספר משרה</span>
+              <span className="details-grid__value">{job.jobNumber}</span>
+            </div>
+          )}
+          {job.location && (
+            <div className="details-grid__item">
+              <span className="details-grid__label">מיקום</span>
+              <span className="details-grid__value">📍 {job.location}</span>
+            </div>
+          )}
           {job.category && (
             <div className="details-grid__item">
               <span className="details-grid__label">קטגוריה</span>
@@ -1270,6 +1455,12 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
               <span className="details-grid__value">{job.followUpAt}</span>
             </div>
           )}
+          {job.salaryRange && (
+            <div className="details-grid__item">
+              <span className="details-grid__label">טווח שכר</span>
+              <span className="details-grid__value">{job.salaryRange}</span>
+            </div>
+          )}
           {job.matchScore !== undefined && (
             <div className="details-grid__item">
               <span className="details-grid__label">ציון התאמה</span>
@@ -1284,6 +1475,8 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
           )}
         </div>
       </div>
+
+      <SalaryCard category={job.category} salaryRange={job.salaryRange} />
 
       <div className="card-row">
         <div className="card card--grow">
@@ -1513,6 +1706,12 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
             {aiFullResult && showFullResults && (
               <div className="job-ai-results">
 
+                {aiFullResult.cvReview && (
+                  <div className="job-ai-results__section">
+                    <AICvReviewCard cvReview={aiFullResult.cvReview} />
+                  </div>
+                )}
+
                 <div className="job-ai-results__section">
                   <h4 className="job-ai-results__section-title">
                     שאלות מקצועיות ({aiFullResult.professionalQuestions.length})
@@ -1584,6 +1783,12 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
                       onSave={() => handleSavePrepSuggestion("companyResearch", aiFullResult!.prepSuggestions.companyResearch)}
                     />
                   )}
+                  {aiFullResult.prepSuggestions.suggestedSalary && (
+                    <div className="job-ai-salary-card">
+                      <p className="job-ai-salary-card__label">💰 טווח שכר מוצע לדרוש</p>
+                      <p className="job-ai-salary-card__value">{aiFullResult.prepSuggestions.suggestedSalary}</p>
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -1649,6 +1854,96 @@ function JobDetailsPage({ job, onBack, onUpdate, onDelete, onNavigate, profile }
             onSave={(v) => savePrep(s.field, v)}
           />
         ))}
+      </div>
+
+      <div className="card chat-card">
+        <h3 className="card__title">שיח חופשי עם AI</h3>
+        {!aiSettings.aiEnabled ? (
+          <p className="prep-section__helper">AI כבוי. ניתן להפעיל ב"הפרופיל שלי".</p>
+        ) : (
+          <>
+            <p className="prep-section__helper">
+              שאלי כל שאלה — תקבלי תשובה קצרה וממוקדת מוכנה לראיון. כל תשובה ניתן להוסיף ישירות למאגר השאלות.
+            </p>
+            <div className="chat-messages">
+              {chatMessages.length === 0 && (
+                <p className="chat-empty">התחילי לשאול שאלה...</p>
+              )}
+              {chatMessages.map((msg) =>
+                msg.role === "user" ? (
+                  <div key={msg.id} className="chat-msg chat-msg--user">
+                    <p className="chat-msg__text">{msg.text}</p>
+                  </div>
+                ) : (
+                  <div key={msg.id} className="chat-msg chat-msg--ai">
+                    <p className="chat-msg__text">{msg.text}</p>
+                    {msg.result && msg.result.keyPoints.length > 0 && (
+                      <ul className="chat-msg__points">
+                        {msg.result.keyPoints.map((kp, i) => (
+                          <li key={i}>{kp}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {msg.result && (
+                      <div className="chat-msg__footer">
+                        <div className="chat-msg__meta">
+                          <span className="chip chip--category chip--sm">
+                            {CATEGORY_LABELS[msg.result.suggestedCategory as keyof typeof CATEGORY_LABELS] ?? msg.result.suggestedCategory}
+                          </span>
+                          <span className="chip chip--topic chip--sm">{msg.result.suggestedTopic}</span>
+                          <span className={`chip chip--difficulty chip--difficulty-${msg.result.suggestedDifficulty} chip--sm`}>
+                            {DIFFICULTY_LABELS[msg.result.suggestedDifficulty]}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`btn btn--sm ${msg.addedToBank ? "btn--secondary" : "btn--primary"}`}
+                          onClick={() => handleChatAddToBank(msg)}
+                          disabled={msg.addedToBank}
+                        >
+                          {msg.addedToBank ? "✓ נוסף למאגר" : "+ הוסף למאגר"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              )}
+              {chatLoading && (
+                <div className="chat-msg chat-msg--ai chat-msg--loading">
+                  <span className="chat-loading-dots">
+                    <span /><span /><span />
+                  </span>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="chat-input-row">
+              <input
+                type="text"
+                className="form-input chat-input"
+                placeholder="שאלי שאלה — לדוגמה: מה זה mutex?"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleChatSend();
+                  }
+                }}
+                disabled={chatLoading}
+                dir="rtl"
+              />
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                onClick={() => void handleChatSend()}
+                disabled={chatLoading || !chatInput.trim()}
+              >
+                שלח
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {aiCvConsent && (

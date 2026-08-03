@@ -5,10 +5,12 @@ import type {
   QuestionDifficulty,
   QuestionSource,
 } from "../types/professionalQuestion";
+import type { UserProfile } from "../types/profile";
 import { useProfessionalQuestions } from "../hooks/useProfessionalQuestions";
 import { usePracticeProgress } from "../hooks/usePracticeProgress";
 import type { ProgressMap } from "../hooks/usePracticeProgress";
 import { analyzeJobDescription, type AnalysisResult } from "../lib/jobDescriptionAnalyzer";
+import { REALTIME_ENGINEER_PROFESSIONAL_QUESTIONS } from "../data/realtimeEngineerProfessionalQuestions";
 import {
   CATEGORY_LABELS,
   DIFFICULTY_LABELS,
@@ -38,6 +40,8 @@ const ALL_CATEGORIES: QuestionCategory[] = [
   "Technical Thinking",
   "Protocols",
   "Architecture",
+  "Cpp",
+  "Embedded",
   "Machine Learning",
   "Deep Learning",
   "AI",
@@ -680,6 +684,20 @@ function AIResultCard({ q, selected, onToggle }: AIResultCardProps) {
 
 // ─── Job Description Analyzer ──────────────────────────────────────────────
 
+const JD_TITLE_KEY = "jobprep-ai-jd-title";
+const JD_DESC_KEY = "jobprep-ai-jd-desc";
+const JD_AI_KEY = "jobprep-ai-jd-ai-results";
+
+function loadJdStr(key: string): string {
+  try { return localStorage.getItem(key) ?? ""; } catch { return ""; }
+}
+function loadJdAiResults(): AIRawQuestion[] {
+  try {
+    const raw = localStorage.getItem(JD_AI_KEY);
+    return raw ? (JSON.parse(raw) as AIRawQuestion[]) : [];
+  } catch { return []; }
+}
+
 type AnalyzerProps = {
   allQuestions: ProfessionalQuestion[];
   onAddQuestions: (
@@ -691,6 +709,7 @@ type AnalyzerProps = {
   categoryLabels: Record<QuestionCategory, string>;
   aiEnabled: boolean;
   redactBeforeSend: boolean;
+  profileSummary?: string;
 };
 
 function JobDescriptionAnalyzer({
@@ -700,10 +719,15 @@ function JobDescriptionAnalyzer({
   categoryLabels,
   aiEnabled,
   redactBeforeSend,
+  profileSummary,
 }: AnalyzerProps) {
-  const [open, setOpen] = useState(false);
-  const [jobTitle, setJobTitle] = useState("");
-  const [jobDesc, setJobDesc] = useState("");
+  const _savedAiResults = loadJdAiResults();
+  const _savedTitle = loadJdStr(JD_TITLE_KEY);
+  const _savedDesc = loadJdStr(JD_DESC_KEY);
+
+  const [open, setOpen] = useState(() => !!_savedDesc.trim() || !!_savedAiResults.length);
+  const [jobTitle, setJobTitle] = useState(() => _savedTitle);
+  const [jobDesc, setJobDesc] = useState(() => _savedDesc);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [addedMsg, setAddedMsg] = useState(false);
@@ -711,8 +735,10 @@ function JobDescriptionAnalyzer({
   // AI state
   const [aiLoading, setAILoading] = useState(false);
   const [aiError, setAIError] = useState("");
-  const [aiResults, setAIResults] = useState<AIRawQuestion[]>([]);
-  const [aiSelected, setAISelected] = useState<Set<number>>(new Set());
+  const [aiResults, setAIResults] = useState<AIRawQuestion[]>(() => _savedAiResults);
+  const [aiSelected, setAISelected] = useState<Set<number>>(
+    () => new Set(_savedAiResults.map((_, i) => i))
+  );
   const [aiAddedMsg, setAIAddedMsg] = useState(false);
   const [aiDisabledMsg, setAIDisabledMsg] = useState(false);
   const [consentPayload, setConsentPayload] = useState<ConsentPayload | null>(null);
@@ -736,6 +762,9 @@ function JobDescriptionAnalyzer({
     setAISelected(new Set());
     setAIError("");
     setAIDisabledMsg(false);
+    localStorage.removeItem(JD_TITLE_KEY);
+    localStorage.removeItem(JD_DESC_KEY);
+    localStorage.removeItem(JD_AI_KEY);
   }
 
   function toggleSelected(i: number) {
@@ -797,10 +826,12 @@ function JobDescriptionAnalyzer({
         jobTitle: redactBeforeSend ? redactPersonalInfo(jobTitle) : jobTitle,
         jobCategory: "",
         jobDescription: payload.textToSend,
+        optionalProfileSummary: profileSummary,
         taskType: "job-questions",
       });
       setAIResults(qs);
       setAISelected(new Set(qs.map((_, i) => i)));
+      localStorage.setItem(JD_AI_KEY, JSON.stringify(qs));
     } catch (err) {
       setAIError(err instanceof Error ? err.message : "שגיאה לא ידועה");
     } finally {
@@ -837,6 +868,7 @@ function JobDescriptionAnalyzer({
     setAIResults([]);
     setAISelected(new Set());
     setAIAddedMsg(true);
+    localStorage.removeItem(JD_AI_KEY);
     setTimeout(() => setAIAddedMsg(false), 4000);
   }
 
@@ -875,7 +907,7 @@ function JobDescriptionAnalyzer({
                   type="text"
                   className="form-input"
                   value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
+                  onChange={(e) => { setJobTitle(e.target.value); localStorage.setItem(JD_TITLE_KEY, e.target.value); }}
                   placeholder="Data Analyst, QA Engineer, Frontend Developer..."
                 />
               </div>
@@ -887,7 +919,7 @@ function JobDescriptionAnalyzer({
                 className="form-input form-textarea"
                 rows={5}
                 value={jobDesc}
-                onChange={(e) => setJobDesc(e.target.value)}
+                onChange={(e) => { setJobDesc(e.target.value); localStorage.setItem(JD_DESC_KEY, e.target.value); }}
                 placeholder="הדביקי את תיאור המשרה כאן..."
               />
             </div>
@@ -1618,10 +1650,26 @@ const BLANK_FORM = {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
-function ProfessionalInterviewPage() {
+type Props = { profile?: UserProfile };
+
+function ProfessionalInterviewPage({ profile }: Props) {
   const { questions, addQuestion, addQuestions, deleteUserQuestion } = useProfessionalQuestions();
   const { progress, recordResult, resetProgress } = usePracticeProgress();
   const { settings: aiSettings } = useAISettings();
+
+  const profileSummary = profile
+    ? [
+        profile.targetRoles && `תפקידים: ${profile.targetRoles}`,
+        profile.skills && `כישורים: ${profile.skills}`,
+        profile.technologies && `טכנולוגיות: ${profile.technologies}`,
+        profile.tools && `כלים: ${profile.tools}`,
+        profile.projectsSummary && `פרויקטים: ${profile.projectsSummary}`,
+        profile.experienceSummary && `ניסיון: ${profile.experienceSummary}`,
+        profile.strengths && `חוזקות: ${profile.strengths}`,
+      ]
+        .filter(Boolean)
+        .join("\n") || undefined
+    : undefined;
 
   const [practiceMode, setPracticeMode] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("compact");
@@ -1734,6 +1782,19 @@ function ProfessionalInterviewPage() {
 
   const categoryOptions = ALL_CATEGORIES.filter((cat) =>
     questions.some((q) => q.category === cat)
+  );
+
+  function handleLoadRealtimePreset() {
+    const existingTexts = new Set(questions.map((q) => q.question.trim()));
+    const toAdd = REALTIME_ENGINEER_PROFESSIONAL_QUESTIONS.filter(
+      (q) => !existingTexts.has(q.question.trim())
+    );
+    if (toAdd.length === 0) return;
+    addQuestions(toAdd, "user");
+  }
+
+  const realtimePresetLoaded = REALTIME_ENGINEER_PROFESSIONAL_QUESTIONS.every((q) =>
+    questions.some((sq) => sq.question.trim() === q.question.trim())
   );
 
   return (
@@ -1861,6 +1922,15 @@ function ProfessionalInterviewPage() {
           onClick={() => setShowAddForm((v) => !v)}
         >
           {showAddForm ? "ביטול" : "+ הוספת שאלה"}
+        </button>
+        <button
+          type="button"
+          className="btn btn--secondary"
+          onClick={handleLoadRealtimePreset}
+          disabled={realtimePresetLoaded}
+          title="טעינת שאלות C/C++, RTOS, Embedded, Protocols, Git, אלגוריתמים ופרויקטים"
+        >
+          {realtimePresetLoaded ? "✓ RT Engineer נטענו" : "טען שאלות RT Engineer"}
         </button>
         <button
           type="button"
@@ -2036,6 +2106,7 @@ function ProfessionalInterviewPage() {
           categoryLabels={CATEGORY_LABELS}
           aiEnabled={aiSettings.aiEnabled}
           redactBeforeSend={aiSettings.redactBeforeSend}
+          profileSummary={profileSummary}
         />
       )}
 
@@ -2114,7 +2185,6 @@ function ProfessionalInterviewPage() {
                 aria-label="סינון טבלה לפי מקור"
               >
                 <option value="">מקור</option>
-                <option value="demo">דמו</option>
                 <option value="user">נוסף ידנית</option>
                 <option value="job-description">נוצר מתיאור משרה</option>
                 <option value="ai">נוצר בעזרת AI</option>
